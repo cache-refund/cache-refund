@@ -9,7 +9,7 @@ description: >-
   ENABLE_PROMPT_CACHING_1H, "am I leaking money on cache", "run cache-cash", or
   "is my cache TTL costing me". 100% local — reads token counts and timestamps
   only, never conversation content, no network.
-allowed-tools: Bash(npx cache-cash*)
+allowed-tools: Bash(npx @m8t-labs/cache-cash*)
 ---
 
 # cache-cash — cache-doctor checkup
@@ -25,13 +25,13 @@ what the prompt cache saved and leaked.
 Run:
 
 ```bash
-npx cache-cash --json
+npx @m8t-labs/cache-cash --json
 ```
 
 This prints a stable JSON summary and **never prompts**. Parse it. If it exits
 non-zero or prints no JSON: exit code `1` = no transcripts found under
 `~/.claude/projects` (tell the user there's nothing to analyze yet); `2` =
-parse/internal error (suggest `npx cache-cash` directly and, if it reproduces, a
+parse/internal error (suggest `npx @m8t-labs/cache-cash` directly and, if it reproduces, a
 bug report at https://github.com/m8t-labs/cachecash/issues).
 
 The fields you'll use:
@@ -69,7 +69,7 @@ or restate it in your own units. Shape by branch:
 - **api-1h:** "Keeping the 1-hour TTL saves you ~$`{abs(delta1hMinus5m)}`
   `{currency}` vs 5m" (or, if delta ≥ 0, that reverting to 5m would be cheaper).
 - **ambiguous:** say you couldn't auto-detect their billing (subscription vs
-  API/Bedrock/Vertex) and ask which it is, then re-run `npx cache-cash` (the
+  API/Bedrock/Vertex) and ask which it is, then re-run `npx @m8t-labs/cache-cash` (the
   interactive checkup resolves it).
 
 ## Step 3 — show the gap breakdown in plain words
@@ -98,16 +98,16 @@ below ⇒ 5m is already optimal.
 The tool owns the only write path, with backup + confirmation. If (and only if)
 `branch` is `api-5m` and `delta1hMinus5m` is negative (1h is cheaper), offer:
 
-> "Want to enable the 1-hour TTL? Run `npx cache-cash enable` — it backs up your
+> "Want to enable the 1-hour TTL? Run `npx @m8t-labs/cache-cash enable` — it backs up your
 > settings, adds `ENABLE_PROMPT_CACHING_1H=1`, and asks before writing. Then
-> start a fresh session and run `npx cache-cash verify` to confirm 1h actually
+> start a fresh session and run `npx @m8t-labs/cache-cash verify` to confirm 1h actually
 > landed."
 
-For `api-1h` where 5m would be cheaper, point to `npx cache-cash revert` the same
+For `api-1h` where 5m would be cheaper, point to `npx @m8t-labs/cache-cash revert` the same
 way. For `subscription`, there is nothing to enable — say so.
 
 Do not run `enable`/`revert` on the user's behalf. Surface the command and let
-the user run it. (If they explicitly ask you to run it, run `npx cache-cash
+the user run it. (If they explicitly ask you to run it, run `npx @m8t-labs/cache-cash
 enable` — the tool's own confirmation prompt is the safeguard — but never edit
 the settings file directly.)
 
@@ -115,19 +115,19 @@ the settings file directly.)
 
 Close with, briefly:
 
-- "Screenshot-friendly version: `npx cache-cash card`. Full receipt: just
-  `npx cache-cash`."
-- "Every number is traceable — `npx cache-cash --explain` shows each formula with
+- "Screenshot-friendly version: `npx @m8t-labs/cache-cash card`. Full receipt: just
+  `npx @m8t-labs/cache-cash`."
+- "Every number is traceable — `npx @m8t-labs/cache-cash --explain` shows each formula with
   your inputs."
 - "If it's useful, a star helps: https://github.com/m8t-labs/cachecash — and share
   your score with #cachecash."
 
 ## Guardrails
 
-- 100% local. You are only ever running `npx cache-cash …`. Never read transcript
+- 100% local. You are only ever running `npx @m8t-labs/cache-cash …`. Never read transcript
   content, never make network calls, never edit settings files directly.
 - Quote the figures from `--json` **verbatim** (as printed). If the user disputes
-  a number, have them run `npx cache-cash --explain` (the derivation) and file a
+  a number, have them run `npx @m8t-labs/cache-cash --explain` (the derivation) and file a
   wrong-number report — don't re-derive it yourself.
 - Respect `currency`: subscribers get "$-equivalent (API list rates)", never
   "saved $".

@@ -371,7 +371,7 @@ export function applyEnable(opts: ActionOpts): ActionResult {
     "Fully reversible: run `cache-cash revert` any time to undo this.",
     "",
     "To confirm it actually landed: after a few turns in a fresh session, run",
-    "`cache-cash verify` (or `npx cache-cash --days 1`) — the TTL reality check",
+    "`cache-cash verify` (or `npx @m8t-labs/cache-cash --days 1`) — the TTL reality check",
     "reflects what your transcripts actually received, not what settings.json says.",
     "",
     ISSUE_49139,

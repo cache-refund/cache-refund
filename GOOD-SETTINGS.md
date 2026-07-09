@@ -23,10 +23,10 @@ transcripts.
 
 | Advice | What `cache-cash` measures | How to see it |
 |---|---|---|
-| **If you're API-billed and your R/C clears 39.5%, switch to the 1-hour TTL.** | Your recoverable ratio R/C vs the exact break-even, and the symmetric-counterfactual dollar delta of switching. | `npx cache-cash` (the verdict box) / `npx cache-cash --explain` |
-| **Verify the TTL you actually received — don't trust the flag.** | The received-TTL split from your `ephemeral_5m/1h` usage fields over your recent window (catches silent server downgrades). | the "TTL received" header line; `npx cache-cash verify` after enabling |
+| **If you're API-billed and your R/C clears 39.5%, switch to the 1-hour TTL.** | Your recoverable ratio R/C vs the exact break-even, and the symmetric-counterfactual dollar delta of switching. | `npx @m8t-labs/cache-cash` (the verdict box) / `npx @m8t-labs/cache-cash --explain` |
+| **Verify the TTL you actually received — don't trust the flag.** | The received-TTL split from your `ephemeral_5m/1h` usage fields over your recent window (catches silent server downgrades). | the "TTL received" header line; `npx @m8t-labs/cache-cash verify` after enabling |
 | **Cut avoidable model switches mid-session.** | `model-switch` invalidation tokens and $ — every switch dumps the cache and re-writes at full markup. | the leak table row "Model-switch invalidations" |
-| **Know your worst re-warm events.** | The single biggest re-warm and your worst day, by net leak $. | `npx cache-cash --compact` |
+| **Know your worst re-warm events.** | The single biggest re-warm and your worst day, by net leak $. | `npx @m8t-labs/cache-cash --compact` |
 
 If a piece of advice can be moved into Tier 1 — computed from transcripts,
 priced, and paired with a concrete fix — it belongs in the *tool*, not this page.

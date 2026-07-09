@@ -20,7 +20,7 @@ body:
   - type: textarea
     id: explain
     attributes:
-      label: "`npx cache-cash --explain` output"
+      label: "`npx @m8t-labs/cache-cash --explain` output"
       description: Paste the full output. This is the derivation with your inputs — it's how we reproduce the figure.
       render: text
     validations:
@@ -28,7 +28,7 @@ body:
   - type: textarea
     id: json
     attributes:
-      label: "`npx cache-cash --json` output"
+      label: "`npx @m8t-labs/cache-cash --json` output"
       description: Paste the full JSON (token counts + timestamps only). Attach as a file if it's large.
       render: json
     validations:

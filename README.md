@@ -1,7 +1,7 @@
 # cache-cash
 
 [![CI](https://github.com/m8t-labs/cachecash/actions/workflows/ci.yml/badge.svg)](https://github.com/m8t-labs/cachecash/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/cache-cash.svg)](https://www.npmjs.com/package/cache-cash)
+[![npm](https://img.shields.io/npm/v/%40m8t-labs%2Fcache-cash.svg)](https://www.npmjs.com/package/@m8t-labs/cache-cash)
 
 **Finds the money your Claude Code cache is leaking.**
 
@@ -22,13 +22,13 @@ cache TTL would save you money and enables it with one confirmation.
 
   > Model switches invalidated 68.9M tokens of cache ($505.56-eq).
 
-share: npx cache-cash --compact  -  #cachecash
+share: npx @m8t-labs/cache-cash --compact  -  #cachecash
 ```
 
-<sub>`npx cache-cash card` on the author's real 591-session corpus (subscription branch — a subscriber's cache is already on 1h, so this is a receipt, not a recommendation). On a real terminal the box is drawn with Unicode; the ASCII form above is what pastes cleanly into a code block. Your numbers are your own.</sub>
+<sub>`npx @m8t-labs/cache-cash card` on the author's real 591-session corpus (subscription branch — a subscriber's cache is already on 1h, so this is a receipt, not a recommendation). On a real terminal the box is drawn with Unicode; the ASCII form above is what pastes cleanly into a code block. Your numbers are your own.</sub>
 
 ```bash
-npx cache-cash
+npx @m8t-labs/cache-cash
 ```
 
 No install, no account, no config. Node 18+.
@@ -66,7 +66,7 @@ cache-write tokens that fell in the recoverable bucket. Above **39.5%**, the
 wins. (That 39.5% is not a vibe — it is `(2 − 1.25) / (2 − 0.1)`, derived in
 [METHODOLOGY.md](./METHODOLOGY.md).)
 
-Everything above is computed only from billed token counts. Run `npx cache-cash
+Everything above is computed only from billed token counts. Run `npx @m8t-labs/cache-cash
 --explain` to see every formula with *your* numbers substituted in.
 
 ## What you get — three endings, one per billing model
@@ -97,12 +97,12 @@ that is also a screenshot worth sharing.
 For an API user whom the math tells to switch:
 
 ```bash
-npx cache-cash enable     # adds ENABLE_PROMPT_CACHING_1H=1 to ~/.claude/settings.json
+npx @m8t-labs/cache-cash enable     # adds ENABLE_PROMPT_CACHING_1H=1 to ~/.claude/settings.json
 ```
 
 This is the **only** thing `cache-cash` ever writes, it asks first (unless you
 pass `--yes`), it backs up `settings.json` before touching it, and it preserves
-every other key. `npx cache-cash revert` undoes it.
+every other key. `npx @m8t-labs/cache-cash revert` undoes it.
 
 The env flag only applies to **sessions started after the change**, and Claude
 Code has had intermittent flakiness landing it
@@ -110,7 +110,7 @@ Code has had intermittent flakiness landing it
 so the tool verifies itself rather than asking you to trust it:
 
 ```bash
-npx cache-cash verify     # after a few turns in a fresh session
+npx @m8t-labs/cache-cash verify     # after a few turns in a fresh session
 ```
 
 `verify` re-reads your *newest* transcripts and checks the **TTL reality check**
@@ -119,7 +119,7 @@ straight from the `ephemeral_5m`/`ephemeral_1h` usage fields, not from what
 `settings.json` claims. If 1h landed, it says so. Later:
 
 ```bash
-npx cache-cash recheck    # the comeback loop
+npx @m8t-labs/cache-cash recheck    # the comeback loop
 ```
 
 `recheck` compares against a small baseline saved at enable time and shows
@@ -145,11 +145,11 @@ regression *watchdog* (below) is the roadmap's flagship.
 ## Other output modes
 
 ```bash
-npx cache-cash card       # the canonical screenshot: section box + top Wrapped line
-npx cache-cash --md       # paste-ready markdown block for Slack / Teams
-npx cache-cash --compact  # ~7 lines: score, R/C verdict, biggest miss, worst day
-npx cache-cash --json     # full machine-readable summary (stable schema, never prompts)
-npx cache-cash --explain  # every formula, your numbers substituted (METHODOLOGY, one flag away)
+npx @m8t-labs/cache-cash card       # the canonical screenshot: section box + top Wrapped line
+npx @m8t-labs/cache-cash --md       # paste-ready markdown block for Slack / Teams
+npx @m8t-labs/cache-cash --compact  # ~7 lines: score, R/C verdict, biggest miss, worst day
+npx @m8t-labs/cache-cash --json     # full machine-readable summary (stable schema, never prompts)
+npx @m8t-labs/cache-cash --explain  # every formula, your numbers substituted (METHODOLOGY, one flag away)
 ```
 
 Flags: `--days N` (default 90) · `--project <path>` (default: all projects) ·
@@ -225,4 +225,4 @@ retrieval date cited in `src/pricing.ts`.)
 Wrong-number reports get a priority lane — see
 [CONTRIBUTING.md](./CONTRIBUTING.md). MIT licensed, © 2026 Ilan Bar-Magen.
 
-Methodology in full: [METHODOLOGY.md](./METHODOLOGY.md) · or run `npx cache-cash --explain`.
+Methodology in full: [METHODOLOGY.md](./METHODOLOGY.md) · or run `npx @m8t-labs/cache-cash --explain`.

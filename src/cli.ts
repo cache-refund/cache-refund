@@ -2,12 +2,12 @@
 /**
  * The full CLI surface.
  *
- *   npx cache-cash                 full checkup
- *   npx cache-cash card            score box + top Wrapped line
- *   npx cache-cash enable          confirmed 1h-TTL enable flow
- *   npx cache-cash revert          confirmed 5m-TTL revert flow
- *   npx cache-cash verify          post-enable TTL check
- *   npx cache-cash recheck         baseline comparison
+ *   npx @m8t-labs/cache-cash                 full checkup
+ *   npx @m8t-labs/cache-cash card            score box + top Wrapped line
+ *   npx @m8t-labs/cache-cash enable          confirmed 1h-TTL enable flow
+ *   npx @m8t-labs/cache-cash revert          confirmed 5m-TTL revert flow
+ *   npx @m8t-labs/cache-cash verify          post-enable TTL check
+ *   npx @m8t-labs/cache-cash recheck         baseline comparison
  *
  *   --days N (90) · --project <path> · --price <model=$/MTok,...> · --yes ·
  *   --no-color · --all-time · --json · --md · --compact · --explain

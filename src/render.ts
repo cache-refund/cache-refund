@@ -55,10 +55,10 @@ export interface RenderOptions {
 }
 
 const BRAND = "cache-cash";
-const METHODOLOGY_HINT = "methodology: npx cache-cash --explain";
+const METHODOLOGY_HINT = "methodology: npx @m8t-labs/cache-cash --explain";
 /** Contains the `dot` decoration -> a function of `sym`, not a plain const. */
 function shareHint(sym: Sym): string {
-  return `share: npx cache-cash --compact  ${sym.dot}  #cachecash`;
+  return `share: npx @m8t-labs/cache-cash --compact  ${sym.dot}  #cachecash`;
 }
 /** Contains a prose em dash -> a function of `sym`, not a plain const. */
 function watchTeaser(sym: Sym): string {
@@ -702,9 +702,9 @@ export function renderMarkdown(s: Summary): string {
   }
   lines.push("");
   if (kind === "A-enable") {
-    lines.push(`**Verdict:** switching to the 1h TTL saves ~${fmtDollars(Math.abs(cf.delta30d))}/30d. Run \`npx cache-cash enable\` to apply.`);
+    lines.push(`**Verdict:** switching to the 1h TTL saves ~${fmtDollars(Math.abs(cf.delta30d))}/30d. Run \`npx @m8t-labs/cache-cash enable\` to apply.`);
   } else if (kind === "A-revert") {
-    lines.push(`**Verdict:** 5m would cost ~${fmtDollars(Math.abs(cf.delta30d))}/30d less for this pattern. Run \`npx cache-cash revert\` to apply.`);
+    lines.push(`**Verdict:** 5m would cost ~${fmtDollars(Math.abs(cf.delta30d))}/30d less for this pattern. Run \`npx @m8t-labs/cache-cash revert\` to apply.`);
   } else if (kind === "B") {
     lines.push(`**Verdict:** certified optimal ✓ — you're on the cheaper TTL for your pattern.`);
   } else {

@@ -7,7 +7,7 @@ biggest miss: 441K-token re-warm - $7.62 in one turn
 worst day: 2026-06-28 - $62.40 leaked
   > Worst day: 2026-06-28 leaked $62.40 (3.1M tokens) to expired cache.
   > Your biggest single miss: a 441K-token re-warm in widgetco-api - $7.62 in
-share: npx cache-cash --compact  -  #cachecash"
+share: npx @m8t-labs/cache-cash --compact  -  #cachecash"
 `;
 
 exports[`snapshots (ANSI-stripped) > --compact, all three fixtures 2`] = `
@@ -17,7 +17,7 @@ biggest miss: 88K-token re-warm - $0.61 in one turn
 worst day: 2026-06-15 - $4.10 leaked
   > Worst day: 2026-06-15 leaked $4.10 (410K tokens) to expired cache.
   > Your peak hour is 10:00 - 260 turns, more than any other hour.
-share: npx cache-cash --compact  -  #cachecash"
+share: npx @m8t-labs/cache-cash --compact  -  #cachecash"
 `;
 
 exports[`snapshots (ANSI-stripped) > --compact, all three fixtures 3`] = `
@@ -27,7 +27,7 @@ biggest miss: 612K-token re-warm - $7.03-eq in one turn
 worst day: 2026-06-10 - $49.21-eq leaked
   > Model switches invalidated 70.3M tokens of cache ($513.86-eq).
   > Your peak hour is 00:00 - 4,774 turns, more than any other hour.
-share: npx cache-cash --compact  -  #cachecash"
+share: npx @m8t-labs/cache-cash --compact  -  #cachecash"
 `;
 
 exports[`snapshots (ANSI-stripped) > --explain, subscriber fixture 1`] = `
@@ -89,9 +89,9 @@ exports[`snapshots (ANSI-stripped) > --md, all three fixtures 1`] = `
 **Biggest single miss:** 441K-token re-warm — $7.62 in one turn.
 **Worst day:** 2026-06-28 — $62.40 leaked.
 
-**Verdict:** switching to the 1h TTL saves ~$380.00/30d. Run \`npx cache-cash enable\` to apply.
+**Verdict:** switching to the 1h TTL saves ~$380.00/30d. Run \`npx @m8t-labs/cache-cash enable\` to apply.
 
-_methodology: npx cache-cash --explain_"
+_methodology: npx @m8t-labs/cache-cash --explain_"
 `;
 
 exports[`snapshots (ANSI-stripped) > --md, all three fixtures 2`] = `
@@ -116,7 +116,7 @@ exports[`snapshots (ANSI-stripped) > --md, all three fixtures 2`] = `
 
 **Verdict:** certified optimal ✓ — you're on the cheaper TTL for your pattern.
 
-_methodology: npx cache-cash --explain_"
+_methodology: npx @m8t-labs/cache-cash --explain_"
 `;
 
 exports[`snapshots (ANSI-stripped) > --md, all three fixtures 3`] = `
@@ -142,7 +142,7 @@ exports[`snapshots (ANSI-stripped) > --md, all three fixtures 3`] = `
 **Verdict:** 1h already yours (subscription) ✓ — your 1h cache saved you ~$2,500.95 USD-equivalent (API list rates) vs a 5m world in the last 90 days.
 Caching saved you $33,866.02 USD-equivalent (API list rates) vs uncached this window.
 
-_methodology: npx cache-cash --explain_"
+_methodology: npx @m8t-labs/cache-cash --explain_"
 `;
 
 exports[`snapshots (ANSI-stripped) > card, all three fixtures 1`] = `
@@ -157,7 +157,7 @@ exports[`snapshots (ANSI-stripped) > card, all three fixtures 1`] = `
 
   > Worst day: 2026-06-28 leaked $62.40 (3.1M tokens) to expired cache.
 
-share: npx cache-cash --compact  -  #cachecash"
+share: npx @m8t-labs/cache-cash --compact  -  #cachecash"
 `;
 
 exports[`snapshots (ANSI-stripped) > card, all three fixtures 2`] = `
@@ -172,7 +172,7 @@ exports[`snapshots (ANSI-stripped) > card, all three fixtures 2`] = `
 
   > Worst day: 2026-06-15 leaked $4.10 (410K tokens) to expired cache.
 
-share: npx cache-cash --compact  -  #cachecash"
+share: npx @m8t-labs/cache-cash --compact  -  #cachecash"
 `;
 
 exports[`snapshots (ANSI-stripped) > card, all three fixtures 3`] = `
@@ -187,7 +187,7 @@ exports[`snapshots (ANSI-stripped) > card, all three fixtures 3`] = `
 
   > Model switches invalidated 70.3M tokens of cache ($513.86-eq).
 
-share: npx cache-cash --compact  -  #cachecash"
+share: npx @m8t-labs/cache-cash --compact  -  #cachecash"
 `;
 
 exports[`snapshots (ANSI-stripped) > ending A (enable) full render 1`] = `
@@ -234,8 +234,8 @@ the 30-day window analyzed).
 This edits ~/.claude/settings.json (backed up first). Applies to new sessions
 only.
 
-methodology: npx cache-cash --explain
-share: npx cache-cash --compact  -  #cachecash"
+methodology: npx @m8t-labs/cache-cash --explain
+share: npx @m8t-labs/cache-cash --compact  -  #cachecash"
 `;
 
 exports[`snapshots (ANSI-stripped) > ending B (certified optimal) full render 1`] = `
@@ -284,8 +284,8 @@ The 5-minute TTL is already optimal for your pattern - switching to 1h would
 cost ~$48.00/30d more.
 proof: actual $246.00 vs 5m-world $246.00 vs 1h-world $342.00, over 60d.
 
-methodology: npx cache-cash --explain
-share: npx cache-cash --compact  -  #cachecash"
+methodology: npx @m8t-labs/cache-cash --explain
+share: npx @m8t-labs/cache-cash --compact  -  #cachecash"
 `;
 
 exports[`snapshots (ANSI-stripped) > ending C (subscriber receipt) full render 1`] = `
@@ -339,6 +339,6 @@ note: subagents still run on 5m even under 1h; overage drops you to 5m and bills
 API rates.
 watch (TTL regression alarm): coming in v1.1 - watch the repo
 
-methodology: npx cache-cash --explain
-share: npx cache-cash --compact  -  #cachecash"
+methodology: npx @m8t-labs/cache-cash --explain
+share: npx @m8t-labs/cache-cash --compact  -  #cachecash"
 `;

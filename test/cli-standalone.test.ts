@@ -5,7 +5,7 @@
  * reachable only behind main()'s "No transcripts found" pipeline gate.
  *
  * These tests spawn the real compiled `dist/cli.js` binary under a synthetic
- * HOME, covering the exact flow a user's `npx cache-cash enable --yes`
+ * HOME, covering the exact flow a user's `npx @m8t-labs/cache-cash enable --yes`
  * takes — argv parsing, the early route in main(), consent gating — not
  * just the actions.ts unit surface (test/actions.test.ts covers that).
  *

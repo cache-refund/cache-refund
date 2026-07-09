@@ -4,7 +4,7 @@ How `cache-cash` turns your transcripts into a verdict, with every constant
 sourced and every formula reproducible. This document describes the code as
 **implemented** in [`src/costmodel.ts`](./src/costmodel.ts) and
 [`src/pricing.ts`](./src/pricing.ts) — not an idealized model. Run
-`npx cache-cash --explain` to see all of it with your own numbers substituted in.
+`npx @m8t-labs/cache-cash --explain` to see all of it with your own numbers substituted in.
 
 - **`score_version: 1`** (printed in `--json`; the efficiency score is only
   comparable within one score version).
@@ -339,5 +339,5 @@ author's launch figures are computed over **590 sessions / 43,783 turns spanning
 84 days** of real Claude Code usage. The oracle cross-check (bucket-exact,
 delta-exact-to-a-named-correction), the golden unit fixtures, and a
 hand-re-derivation of every number in the launch screenshot are the trust
-surface. Every claim in a checkup is traceable: **`npx cache-cash --explain`
+surface. Every claim in a checkup is traceable: **`npx @m8t-labs/cache-cash --explain`
 prints the formula with your inputs, and this document derives every constant.**

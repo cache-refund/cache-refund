@@ -1,5 +1,5 @@
 {
-  "name": "cache-cash",
+  "name": "@m8t-labs/cache-cash",
   "version": "1.0.0",
   "description": "A cache doctor for Claude Code: find the money your prompt cache is leaking.",
   "type": "module",
@@ -47,5 +47,8 @@
     "@types/node": "^20.0.0",
     "typescript": "^5.4.0",
     "vitest": "^1.6.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

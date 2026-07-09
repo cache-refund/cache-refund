@@ -59,9 +59,9 @@ jobs:
         run: |
           version="$(node -p "require('./package.json').version")"
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          if [ -n "$(npm view "cache-cash@$version" version 2>/dev/null || true)" ]; then
+          if [ -n "$(npm view "@m8t-labs/cache-cash@$version" version 2>/dev/null || true)" ]; then
             echo "publish=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::cache-cash@$version already on npm — skipping publish"
+            echo "::notice::@m8t-labs/cache-cash@$version already on npm — skipping publish"
           else
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
@@ -99,12 +99,12 @@ jobs:
           set -euo pipefail
           mkdir consumer && cd consumer
           npm init -y >/dev/null
-          npm install "cache-cash@${DIST_TAG}"
+          npm install "@m8t-labs/cache-cash@${DIST_TAG}"
           # A runner has no ~/.claude/projects; the correct behavior is a
           # clean exit code 1 with the no-transcripts message. That proves
           # the bin resolves, node >=18 runs it, and the guard path works.
           set +e
-          out="$(npx cache-cash --json 2>&1)"
+          out="$(npx @m8t-labs/cache-cash --json 2>&1)"
           code=$?
           set -e
           echo "$out"

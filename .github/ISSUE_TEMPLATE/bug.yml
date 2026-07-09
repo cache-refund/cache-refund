@@ -14,7 +14,7 @@ body:
     attributes:
       label: What happened?
       description: What you ran, what you expected, and what you got.
-      placeholder: "Ran `npx cache-cash enable`; expected it to write the flag; got a stack trace ..."
+      placeholder: "Ran `npx @m8t-labs/cache-cash enable`; expected it to write the flag; got a stack trace ..."
     validations:
       required: true
   - type: textarea
@@ -31,7 +31,7 @@ body:
     id: command
     attributes:
       label: Exact command
-      placeholder: "npx cache-cash --days 30 --project ~/dev/foo"
+      placeholder: "npx @m8t-labs/cache-cash --days 30 --project ~/dev/foo"
     validations:
       required: true
   - type: input
