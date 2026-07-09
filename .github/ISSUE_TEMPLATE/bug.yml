@@ -1,0 +1,51 @@
+name: "Bug report"
+description: "Something crashed, misbehaved, or didn't do what the docs say."
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If a **number** looks wrong rather than the tool misbehaving, please use the **Wrong number (priority lane)** template instead — those get triaged first.
+
+        **Privacy note:** don't paste transcript content. cache-cash never reads it and issues shouldn't contain it.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you ran, what you expected, and what you got.
+      placeholder: "Ran `npx cache-cash enable`; expected it to write the flag; got a stack trace ..."
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: Exact command
+      placeholder: "npx cache-cash --days 30 --project ~/dev/foo"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: cache-cash version, Node version, OS
+      placeholder: "cache-cash 1.0.0, node 18.x, macOS 15"
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Error output / stack trace
+      description: Paste any error text (redact anything you consider sensitive — there should be no transcript content in it).
+      render: text
+    validations:
+      required: false

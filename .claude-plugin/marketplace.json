@@ -1,0 +1,22 @@
+{
+  "name": "cachecash",
+  "owner": {
+    "name": "Ilan Bar-Magen"
+  },
+  "description": "cache-cash — find the money your Claude Code cache is leaking.",
+  "plugins": [
+    {
+      "name": "cache-cash",
+      "source": "./skill",
+      "description": "Runs the cache-cash checkup and narrates it: what your prompt cache saved, what it leaked, and (for API users) whether to enable the 1-hour TTL.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Ilan Bar-Magen"
+      },
+      "homepage": "https://github.com/ilanbm/cachecash",
+      "repository": "https://github.com/ilanbm/cachecash",
+      "license": "MIT",
+      "keywords": ["claude-code", "prompt-cache", "cost", "ttl", "cache"]
+    }
+  ]
+}

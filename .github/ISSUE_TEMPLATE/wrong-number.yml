@@ -1,0 +1,55 @@
+name: "Wrong number (priority lane)"
+description: "A figure cache-cash printed doesn't match reality. This jumps the queue."
+title: "[wrong-number] "
+labels: ["wrong-number", "priority"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A wrong number in public is the worst-case bug for this tool, so these get triaged first.
+
+        **Privacy:** `--json` and `--explain` contain **token counts and timestamps only — no conversation content**. That is exactly the data cache-cash reads. If you're still unsure, skim the output before pasting; there are no prompts or replies in it.
+  - type: textarea
+    id: expected
+    attributes:
+      label: What number looked wrong, and what did you expect?
+      description: Which figure (e.g. the counterfactual delta, a leak row, the score) and why you think it's off.
+      placeholder: "The receipt said 'saved ~$2,506 vs 5m' but spend dashboards shows my total spend was only $X, so ..."
+    validations:
+      required: true
+  - type: textarea
+    id: explain
+    attributes:
+      label: "`npx cache-cash --explain` output"
+      description: Paste the full output. This is the derivation with your inputs — it's how we reproduce the figure.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: json
+    attributes:
+      label: "`npx cache-cash --json` output"
+      description: Paste the full JSON (token counts + timestamps only). Attach as a file if it's large.
+      render: json
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: cache-cash version and Node version
+      placeholder: "cache-cash 1.0.0, node 20.x"
+    validations:
+      required: true
+  - type: dropdown
+    id: branch
+    attributes:
+      label: Which branch did it detect you as?
+      description: Shown in the checkup / in `--json` as `branch`.
+      options:
+        - "subscription"
+        - "api-5m (API-billed, receiving 5m)"
+        - "api-1h (API-billed, receiving 1h)"
+        - "ambiguous"
+        - "not sure"
+    validations:
+      required: true

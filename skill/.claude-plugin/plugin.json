@@ -1,0 +1,11 @@
+{
+  "name": "cache-cash",
+  "description": "Runs the cache-cash checkup and narrates it: what your prompt cache saved, what it leaked and why, and — for API-billed users on the 5-minute default — whether the 1-hour TTL would save money. 100% local; reads token counts and timestamps only.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Ilan Bar-Magen"
+  },
+  "homepage": "https://github.com/ilanbm/cachecash",
+  "repository": "https://github.com/ilanbm/cachecash",
+  "license": "MIT"
+}
