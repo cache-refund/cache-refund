@@ -36,11 +36,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ilanbm/cachecash.git"
+    "url": "git+https://github.com/m8t-labs/cachecash.git"
   },
-  "homepage": "https://github.com/ilanbm/cachecash#readme",
+  "homepage": "https://github.com/m8t-labs/cachecash#readme",
   "bugs": {
-    "url": "https://github.com/ilanbm/cachecash/issues"
+    "url": "https://github.com/m8t-labs/cachecash/issues"
   },
   "author": "Ilan Bar-Magen",
   "devDependencies": {

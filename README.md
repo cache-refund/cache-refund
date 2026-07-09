@@ -1,6 +1,6 @@
 # cache-cash
 
-[![CI](https://github.com/ilanbm/cachecash/actions/workflows/ci.yml/badge.svg)](https://github.com/ilanbm/cachecash/actions/workflows/ci.yml)
+[![CI](https://github.com/m8t-labs/cachecash/actions/workflows/ci.yml/badge.svg)](https://github.com/m8t-labs/cachecash/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/cache-cash.svg)](https://www.npmjs.com/package/cache-cash)
 
 **Finds the money your Claude Code cache is leaking.**
@@ -187,7 +187,7 @@ honest, not missing data.
 
 **I think a number is wrong.**
 That is the highest-priority kind of bug report. Open a
-[wrong-number issue](https://github.com/ilanbm/cachecash/issues/new?template=wrong-number.yml)
+[wrong-number issue](https://github.com/m8t-labs/cachecash/issues/new?template=wrong-number.yml)
 — it asks for your `--json` and `--explain` output (token counts and timestamps
 only, no content) so the exact figure can be reproduced and traced through the
 formula.
