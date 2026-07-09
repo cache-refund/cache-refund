@@ -1,6 +1,6 @@
 {
   "name": "cache-cash",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "description": "A cache doctor for Claude Code: find the money your prompt cache is leaking.",
   "type": "module",
   "bin": {
@@ -25,13 +25,24 @@
     "claude",
     "claude-code",
     "prompt-cache",
+    "prompt-caching",
     "cache",
     "ttl",
     "cost",
+    "cost-optimization",
     "anthropic",
     "cli"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ilanbm/cachecash.git"
+  },
+  "homepage": "https://github.com/ilanbm/cachecash#readme",
+  "bugs": {
+    "url": "https://github.com/ilanbm/cachecash/issues"
+  },
+  "author": "Ilan Bar-Magen",
   "devDependencies": {
     "@types/node": "^20.0.0",
     "typescript": "^5.4.0",
