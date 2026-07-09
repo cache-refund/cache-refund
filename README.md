@@ -1,5 +1,8 @@
 # cache-cash
 
+[![CI](https://github.com/ilanbm/cachecash/actions/workflows/ci.yml/badge.svg)](https://github.com/ilanbm/cachecash/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/cache-cash.svg)](https://www.npmjs.com/package/cache-cash)
+
 **Finds the money your Claude Code cache is leaking.**
 
 One `npx` run reads your local Claude Code transcripts, computes what the prompt
