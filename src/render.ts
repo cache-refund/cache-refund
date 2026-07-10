@@ -736,6 +736,33 @@ function subscriberParadoxLine(sym: Sym): string {
   return `Subscription usage is metered at API-value rates ${sym.dash} that's how a $-priced plan absorbs this much, and why your limits stretch as far as they do.`;
 }
 
+/**
+ * The limit-stretch multiples (subscription branch only): how much MORE of
+ * the user's usage limit the same work would have metered under a 5m cache,
+ * and under no cache at all. Pure arithmetic on billed tokens — it needs no
+ * knowledge of the (undisclosed) limit formula, only the one assumption the
+ * receipt already states: usage is metered cost-weighted at API-value rates.
+ * Under that assumption, X× the cost-weighted usage is X× the limit consumed,
+ * whatever the limit is. Returns null off-branch, or when the 1h cache isn't
+ * actually ahead (never claim a stretch that isn't there).
+ */
+export function limitMultiples(s: Summary): { pct5m: number; xUncached: number } | null {
+  if (s.branch !== "subscription") return null;
+  const actual = s.counterfactual.actualCost;
+  if (!(actual > 0)) return null;
+  const m5 = s.counterfactual.cost5m / actual;
+  const mU = uncachedCost(s) / actual;
+  if (m5 <= 1 || mU <= 1) return null;
+  return { pct5m: Math.round((m5 - 1) * 100), xUncached: mU };
+}
+
+/** ASCII-safe prose line for limitMultiples; null when the multiples are. */
+export function limitStretchLine(s: Summary): string | null {
+  const m = limitMultiples(s);
+  if (m === null) return null;
+  return `Same work on a 5m cache: ~${m.pct5m}% more of your usage limit. Uncached: ~${m.xUncached.toFixed(1)}x.`;
+}
+
 function endingReceipt(s: Summary, ink: Ink, sym: Sym, planPrice?: number): EndingRender {
   const pctReceived1h = s.ttlRealityCheck.received === "1h";
   // Line 3 of the receipt: the TTL verification. Percentage is the 1h WRITE
@@ -754,6 +781,7 @@ function endingReceipt(s: Summary, ink: Ink, sym: Sym, planPrice?: number): Endi
     ...wrapTerm(receiptHeadline(s, sym)).map((l) => ink.bold(l)),
     ...wrapTerm(cachingSavedLine(s, sym)),
     ...wrapTerm(subscriberParadoxLine(sym)),
+    ...(limitStretchLine(s) !== null ? wrapTerm(limitStretchLine(s)!) : []),
     ...(plan !== null ? wrapTerm(plan) : []),
     ...wrapTerm(verifyLine),
     "",
@@ -849,9 +877,13 @@ export function shareTemplate(s: Summary): string {
   } else {
     const pct = billSharePct(cf.delta1hMinus5m, cf.cost5m);
     scaleClause = `, across ${tokens} tokens · ${sessions} sessions`;
+    // Limit framing, not cost framing: a subscriber's tweet-reader doesn't
+    // pay per token — the relatable unit is their usage limit. Same pct
+    // (share of the would-be metered usage the 1h cache avoids); the
+    // cost-weighted-metering assumption is documented in METHODOLOGY.
     full =
-      `My 1h prompt cache cut my Claude Code cache costs ~${pct}% — ` +
-      `that's ≈${fmtDollars(Math.abs(cf.delta1hMinus5m))} in API-value over ${windowPhrase(s)}` +
+      `My 1h prompt cache frees ~${pct}% of my Claude Code usage limit — ` +
+      `≈${fmtDollars(Math.abs(cf.delta1hMinus5m))} of API-value over ${windowPhrase(s)}` +
       `${scaleClause}. ${SHARE_CTA_TAIL}`;
   }
 

@@ -331,7 +331,30 @@ only to `delta30d`.
   and the 0.1× read rate come from Anthropic's published pricing tables and are
   re-derived per model in `src/pricing.ts` (URL + retrieval date cited there).
 
-## 13. "Backtested against N weeks of real usage"
+## 13. Limit framing on the subscription branch (multiples, never absolutes)
+
+Subscribers don't pay per token — their currency is the usage limit. The limit
+formula itself is undisclosed, so `cache-refund` never claims an absolute
+("you saved 9% of your weekly limit"). What it does claim is a **ratio of your
+own metered usage**, which needs exactly one assumption — the same one the
+receipt already states: *subscription usage is metered cost-weighted at
+API-value rates.* Under that assumption, X× the cost-weighted usage is X× the
+limit consumed, whatever the limit actually is:
+
+```
+5m-cache multiple   = cost5m   / actual     (e.g. 1.09 -> "~9% more of your usage limit")
+uncached multiple   = uncached / actual     (e.g. 3.0  -> "~3.0x")
+```
+
+Both numerators are the same counterfactuals derived in §4; `actual` is the
+ground-truth reconstruction. The line renders only on the subscription branch
+and only when the 1h cache is genuinely ahead (`limitMultiples` in
+`src/render.ts` returns null otherwise — the tool never claims a stretch that
+isn't there). This is also how a $-priced plan "absorbs" tens of thousands of
+dollars of API-value: the plan meters your usage in that currency; it doesn't
+bill it.
+
+## 14. "Backtested against N weeks of real usage"
 
 Every number `cache-refund` prints is computed over **your own real transcripts**
 for the selected window — there is no synthetic model of your behavior. The

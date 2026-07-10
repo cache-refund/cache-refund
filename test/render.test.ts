@@ -13,6 +13,8 @@ import {
   checkupLines,
   decideEnding,
   fmtAbsorbed,
+  limitMultiples,
+  limitStretchLine,
   makeScanProgress,
   numberBox,
   planMultiplierLine,
@@ -498,11 +500,13 @@ describe("share templates (v1.0.2: plain English, percentage framing)", () => {
     expect(t).not.toContain("R/C"); // jargon killed
     expect(t.length).toBeLessThanOrEqual(280);
   });
-  it("ending C: pct cut + API-value + window + scale, under 280 chars", () => {
+  it("ending C: limit framing + API-value + window + scale, under 280 chars", () => {
     const t = shareTemplate(fixtureEndingCReceipt);
-    // |delta -2500.95| / cost5m 18121.67 = 13.8% -> rounds to 14
-    expect(t).toContain("cut my Claude Code cache costs ~14%");
-    expect(t).toContain("that's ≈$2,500.95 in API-value over the last 90 days");
+    // |delta -2500.95| / cost5m 18121.67 = 13.8% -> rounds to 14. The pct is
+    // framed as usage-limit share, the subscriber's own currency (the
+    // cost-weighted-metering assumption is documented in METHODOLOGY).
+    expect(t).toContain("frees ~14% of my Claude Code usage limit");
+    expect(t).toContain("≈$2,500.95 of API-value over the last 90 days");
     expect(t).toMatch(/across [\d.]+B tokens · 590 sessions/);
     expect(t.length).toBeLessThanOrEqual(280);
   });
@@ -639,6 +643,30 @@ describe("subscriber paradox explainer (v1.0.2, ending C only)", () => {
       const { lines } = renderFull(s, NON_TTY);
       expect(stripAnsi(lines.join("\n"))).not.toContain("Subscription usage is metered");
     }
+  });
+});
+
+describe("limitMultiples / limitStretchLine (v1.0.3, subscription limit framing)", () => {
+  it("subscription: multiples derive from cost5m/actual and uncached/actual (metering-agnostic ratios)", () => {
+    const m = limitMultiples(fixtureEndingCReceipt);
+    // cost5m 18121.67 / actual 16645.73 = 1.0887 -> ~9% more; uncached/actual ~3.0x
+    expect(m).not.toBeNull();
+    expect(m!.pct5m).toBe(9);
+    expect(m!.xUncached).toBeGreaterThan(1);
+    expect(limitStretchLine(fixtureEndingCReceipt)).toBe(
+      `Same work on a 5m cache: ~9% more of your usage limit. Uncached: ~${m!.xUncached.toFixed(1)}x.`,
+    );
+  });
+  it("non-subscription branches -> null (the limit is a subscriber concept)", () => {
+    expect(limitMultiples(fixtureEndingAEnable)).toBeNull();
+    expect(limitMultiples(fixtureEndingBOptimal)).toBeNull();
+  });
+  it("never claims a stretch that isn't there (1h not ahead -> null)", () => {
+    expect(limitMultiples(fixtureNegativeCachingSavings)).toBeNull();
+  });
+  it("ASCII-safe (~ and x, no ≈/×) for the non-TTY path", () => {
+    const line = limitStretchLine(fixtureEndingCReceipt)!;
+    expect([...line].every((c) => c.codePointAt(0)! <= 127)).toBe(true);
   });
 });
 

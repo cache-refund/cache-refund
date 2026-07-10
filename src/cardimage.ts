@@ -35,7 +35,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { absorbedDollars, decideEnding, fmtAbsorbed, planMultiplierLine, wrappedLines } from "./render.js";
+import { absorbedDollars, decideEnding, fmtAbsorbed, limitMultiples, planMultiplierLine, wrappedLines } from "./render.js";
 import { fmtTokensCompact, makeInk, makeSym } from "./format.js";
 import type { Summary } from "./types.js";
 
@@ -182,6 +182,16 @@ export function buildCardSvg(s: Summary, planPrice?: number): string {
       ? `\n  <text x="360" y="316" text-anchor="middle" class="t dim" font-size="14">${escapeXml(fmtAbsorbed(absorbed))}</text>`
       : "";
 
+  // Limit framing (subscription): between the fact line (y=478) and the CTA
+  // pill (y=530) — the reader's own currency is their usage limit, and this
+  // is the line that answers "how does a $200 plan absorb $67k". Omitted
+  // (limitMultiples' gates) off-branch or when 1h isn't actually ahead.
+  const stretch = limitMultiples(s);
+  const stretchSvgLine =
+    stretch !== null
+      ? `\n  <text x="360" y="506" text-anchor="middle" class="t dim" font-size="13">${escapeXml(`same work on a 5m cache: ~${stretch.pct5m}% more of your usage limit`)}</text>`
+      : "";
+
   const footerSub = subscriber
     ? `\n  <text x="360" y="690" text-anchor="middle" class="t dim" font-size="12">${escapeXml("$ figures are API-value (list rates) — subscription usage is metered in it, not billed")}</text>`
     : "";
@@ -208,7 +218,7 @@ export function buildCardSvg(s: Summary, planPrice?: number): string {
   <text x="80" y="409" class="t dim" font-size="13">recoverable</text><text x="516" y="409" class="t txt" font-size="13">${pctRecText}</text>
   <rect x="200" y="420" width="300" height="12" rx="6" fill="#232530"/><rect x="200" y="420" width="${barWidth(pctCold)}" height="12" rx="6" fill="#949cb8"/>
   <text x="80" y="431" class="t dim" font-size="13">cold</text><text x="516" y="431" class="t txt" font-size="13">${pctColdText}</text>
-  <text x="80" y="478" class="t" font-size="14"><tspan class="orange">›</tspan><tspan class="txt"> ${fact}</tspan></text>
+  <text x="80" y="478" class="t" font-size="14"><tspan class="orange">›</tspan><tspan class="txt"> ${fact}</tspan></text>${stretchSvgLine}
   <rect x="80" y="530" width="560" height="64" rx="12" fill="#d75fd7" fill-opacity="0.10" stroke="#d75fd7" stroke-width="1.5"/>
   <text x="360" y="570" text-anchor="middle" class="t brand" font-size="22" font-weight="700">npx cache-refund</text>
   <text x="360" y="640" text-anchor="middle" class="t dim" font-size="13">#cacherefund</text>

@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.3] — 2026-07-10
+
+- **Usage-limit framing for subscribers** (multiples, never absolutes): the
+  receipt, the share card, and the prefilled post now express the 1h cache's
+  effect in the subscriber's own currency — "Same work on a 5m cache: ~9%
+  more of your usage limit. Uncached: ~3.0x." and "frees ~N% of my Claude
+  Code usage limit". Derivation and the single stated assumption
+  (cost-weighted metering) in METHODOLOGY §13; the tool still never claims a
+  percentage of the undisclosed absolute limit.
+- The share-accept flow pauses ~1s between "card image on your clipboard —
+  Cmd+V into the post" and the browser launch, so the tip registers before
+  the browser steals focus.
+
 ## [1.0.2] — 2026-07-10
 
 - **Renamed to `cache-refund`** (previously published as a scoped package).

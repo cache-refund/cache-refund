@@ -330,6 +330,7 @@ Caching saved you $33,866.02 USD-equivalent (API list rates) vs uncached this
 window.
 Subscription usage is metered at API-value rates - that's how a $-priced plan
 absorbs this much, and why your limits stretch as far as they do.
+Same work on a 5m cache: ~9% more of your usage limit. Uncached: ~3.0x.
 1h already yours, verified in your transcripts: 99.5% of writes are 1h OK
 
 QUOTA-LEAK LIST ($-equivalent, API list rates - not a bill)
