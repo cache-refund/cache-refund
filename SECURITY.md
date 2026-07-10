@@ -9,6 +9,11 @@ with your explicit confirmation — writes one env line to `~/.claude/settings.j
 requests**. Anything that violates one of those properties is a security bug,
 not a feature request.
 
+The optional share prompt (v1.0.1, interactive terminal runs only) stays within
+those properties: it launches *your own browser* locally with a prefilled post
+you review before sending, or writes to your local clipboard — the process
+itself still performs no network I/O, and the prompt is one-time and skippable.
+
 ## Reporting a vulnerability
 
 Please use **GitHub's private vulnerability reporting** on this repository

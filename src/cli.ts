@@ -10,7 +10,9 @@
  *   npx @m8t-labs/cache-cash recheck         baseline comparison
  *
  *   --days N (90) · --project <path> · --price <model=$/MTok,...> · --yes ·
- *   --no-color · --all-time · --json · --md · --compact · --explain
+ *   --no-color · --all-time · --json · --md · --compact · --explain ·
+ *   --projects (v1.0.1: opt back into project names in human output;
+ *               default is share-safe — no project names in screenshots)
  *
  * Exit codes: 0 ok · 1 no transcripts found · 2 parse/internal error.
  * `--json` never prompts.
@@ -24,11 +26,26 @@ import { createInterface } from "node:readline";
 import { homedir } from "node:os";
 import { run } from "./pipeline.js";
 import { parsePriceOverride } from "./pricing.js";
-import { applyEnable, applyRevert, runRecheck, runVerify } from "./actions.js";
+import {
+  applyEnable,
+  applyRevert,
+  recordSharePromptShown,
+  runRecheck,
+  runVerify,
+  sharePromptShown,
+} from "./actions.js";
+import {
+  bskyIntentUrl,
+  copyToClipboard,
+  openExternal,
+  SHARE_PROMPT_LINE,
+  xIntentUrl,
+} from "./share.js";
 import {
   checkupLines,
   decideEnding,
   gapBars,
+  makeScanProgress,
   numberBox,
   pickLoadingPun,
   renderAmbiguousNotice,
@@ -38,8 +55,8 @@ import {
   renderExplain,
   renderFull,
   renderMarkdown,
-  scanCounterLine,
   shareRail,
+  shareTemplate,
   trustLine,
   wrappedLines,
 } from "./render.js";
@@ -62,6 +79,13 @@ interface Args {
   md: boolean;
   compact: boolean;
   explain: boolean;
+  /**
+   * --projects (v1.0.1): opt back into printing project names in human
+   * output for local diagnosis. Default OFF — share-safe output never leaks
+   * project names into screenshots. Distinct from --project <path> (scope
+   * filter). --json always keeps its project fields regardless.
+   */
+  projects: boolean;
 }
 
 const SUBCOMMANDS = new Set<Subcommand>(["card", "enable", "revert", "verify", "recheck"]);
@@ -77,6 +101,7 @@ function parseArgs(argv: string[]): Args {
     md: false,
     compact: false,
     explain: false,
+    projects: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -112,6 +137,12 @@ function parseArgs(argv: string[]): Args {
         args.days = Number.isFinite(v) ? v : args.days;
         break;
       }
+      case "--projects":
+        // NOTE: distinct from --project <path> below (exact-match switch, no
+        // prefix ambiguity): --projects re-enables project names in human
+        // output; --project scopes the analysis to one project dir.
+        args.projects = true;
+        break;
       case "--project":
         args.project = argv[++i];
         break;
@@ -160,6 +191,61 @@ function promptYesNo(question: string): Promise<boolean> {
   });
 }
 
+/** One free-form prompt line on stdin (share CTA). */
+function promptLine(question: string): Promise<string> {
+  return new Promise((resolve) => {
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer.trim().toLowerCase());
+    });
+  });
+}
+
+// ------------------------------------------------------------- share CTA
+
+/**
+ * The share CTA (v1.0.1). TTY-interactive only — never non-TTY/CI/--json/
+ * --md/card/--compact (callers gate on the checkup TTY path + the two
+ * forced re-ask moments). Frequency guard: asks ONCE per machine ever
+ * (recorded in the baseline file via actions.ts), except `force` re-asks at
+ * the two high-emotion moments (right after a successful enable; after a
+ * recheck showing positive savings). Any non-[x/b/c] answer = skip, no nag.
+ *
+ * Trust line holds: zero network requests from this process — [x]/[b] open
+ * the user's own browser with prefilled text they read before posting; [c]
+ * uses the local clipboard tool.
+ */
+async function maybeSharePrompt(summary: Summary, force: boolean): Promise<void> {
+  const interactive = process.stdout.isTTY && !process.env.CI;
+  if (!interactive) return;
+  if (!force && sharePromptShown(homedir())) return;
+
+  const answer = await promptLine(`\n${SHARE_PROMPT_LINE}`);
+  // Recorded regardless of the answer: once per machine, no nag.
+  recordSharePromptShown(homedir());
+
+  if (answer === "x" || answer === "b") {
+    const text = shareTemplate(summary);
+    const url = answer === "x" ? xIntentUrl(text) : bskyIntentUrl(text);
+    const opened = await openExternal(url);
+    if (!opened) {
+      process.stdout.write(`couldn't launch a browser — open this yourself:\n${url}\n`);
+    }
+    process.stdout.write("tip: screenshot the card above and attach it.\n");
+    return;
+  }
+  if (answer === "c") {
+    const md = renderMarkdown(summary);
+    const copied = await copyToClipboard(md);
+    if (copied) {
+      process.stdout.write("copied — paste it into Slack/Teams.\n");
+    } else {
+      process.stdout.write(md + "\n\n(no clipboard tool found — copy the block above)\n");
+    }
+  }
+}
+
 /** The one interactive branch-ambiguity question: "subscription or API/Bedrock/Vertex?". */
 function promptBranch(): Promise<Branch> {
   return new Promise((resolve) => {
@@ -198,16 +284,19 @@ async function main(): Promise<number> {
     return await runStandaloneAction(args);
   }
 
-  // Live per-project scan counter (trust line, TTY only) needs the run to
-  // report progress; run() itself is a single async call (no progress
-  // callback in the Summary schema), so on huge corpora (measured ~4s over
-  // 21.7k files) we print the trust line + a one-shot loading pun
-  // immediately, then the real result once run() resolves. This satisfies
-  // "the wait is part of the demo" without needing a progress callback into
-  // pipeline.ts's run().
+  // Live in-place scan counter (TTY checkup only), fed by pipeline.ts's
+  // additive onFileParsed hook (v1.0.1 — replaces the old one-shot
+  // "scanning 0/1" line that stayed stuck above the CHECKUP section).
+  // The counter rewrites ONLY its own line via "\r" frames and is finalized
+  // (erased) the moment run() resolves — the CHECKUP section carries the
+  // final counts, and nothing above the progress line is ever touched
+  // (no-screen-clear law).
+  let progress: ReturnType<typeof makeScanProgress> | null = null;
   if (tty && args.subcommand === "checkup") {
     process.stdout.write(trustLine(ink, sym) + "\n");
-    process.stdout.write(scanCounterLine(0, 1, pickLoadingPun(), ink, sym) + "\n");
+    progress = makeScanProgress(pickLoadingPun(), ink, sym);
+    const first = progress.frame(0, 0);
+    if (first !== null) process.stdout.write(first);
   }
 
   // Always resolve with jsonMode:true internally first so we get the HONEST
@@ -219,7 +308,16 @@ async function main(): Promise<number> {
     allTime: args.allTime,
     jsonMode: true,
     overrides: args.overrides,
+    onFileParsed: progress
+      ? (done, total) => {
+          const p = progress!.frame(done, total);
+          if (p !== null) process.stdout.write(p);
+        }
+      : undefined,
   });
+  // Finalize the progress line BEFORE anything else prints (errors, the
+  // ambiguous-branch question, the checkup itself).
+  if (progress) process.stdout.write(progress.finish());
 
   if (baseResult.code === 1) {
     process.stderr.write("No transcripts found under ~/.claude/projects\n");
@@ -269,7 +367,7 @@ async function dispatch(
   summary: Summary,
   renderOpts: { tty: boolean; color: boolean },
 ): Promise<number> {
-  const opts = { tty: renderOpts.tty, noColor: !renderOpts.color };
+  const opts = { tty: renderOpts.tty, noColor: !renderOpts.color, showProjects: args.projects };
 
   // --json always wins (stable machine-readable schema).
   if (args.json) {
@@ -297,6 +395,10 @@ async function dispatch(
     case "recheck": {
       const res = await runRecheck({ home: homedir() });
       process.stdout.write(res.message.join("\n") + "\n");
+      if ((res.savedSinceEnable ?? 0) > 0) {
+        // High-emotion re-ask moment #2: a receipt showing positive savings.
+        await maybeSharePrompt(summary, true);
+      }
       return 0;
     }
 
@@ -341,14 +443,20 @@ async function renderCheckup(
   await staggerPrint(checkupLines(summary, ink, sym));
   process.stdout.write("\n" + numberBox(summary, ink, sym) + "\n\n");
   process.stdout.write(gapBars(summary, ink, false, sym).join("\n") + "\n\n");
-  process.stdout.write(wrappedLines(summary, ink, sym).join("\n") + "\n\n");
+  process.stdout.write(wrappedLines(summary, ink, sym, args.projects).join("\n") + "\n\n");
 
   const kind = decideEnding(summary);
   const ending = renderEnding(summary, kind, ink, sym);
   process.stdout.write(ending.lines.join("\n") + "\n\n");
   process.stdout.write(shareRail(ink, sym).join("\n") + "\n");
 
-  return await maybeConsentFromEnding(args, summary, ending.needsConsent, ending.consentVerb);
+  const code = await maybeConsentFromEnding(args, summary, ending.needsConsent, ending.consentVerb);
+  // Share CTA, after the rail and after any consent flow (TTY path only —
+  // the non-TTY branch above never prompts). Once per machine; the
+  // post-enable re-ask inside maybeConsentFromEnding records first, which
+  // makes this call a no-op in that flow.
+  await maybeSharePrompt(summary, false);
+  return code;
 }
 
 /** ~150ms stagger between CHECKUP's ✓✓⚠ lines, TTY only. */
@@ -419,6 +527,11 @@ async function runStandaloneAction(args: Args): Promise<number> {
   }
   const res = applyEnable({ home: homedir(), summary });
   process.stdout.write(res.message.join("\n") + "\n");
+  if (res.applied && summary) {
+    // High-emotion re-ask moment #1 (standalone `enable` route). Skipped
+    // when no Summary exists (empty corpus) — no numbers to fill a template.
+    await maybeSharePrompt(summary, true);
+  }
   return 0;
 }
 
@@ -455,6 +568,10 @@ async function maybeConsentFromEnding(
       ? applyEnable({ home: homedir(), summary })
       : applyRevert({ home: homedir() });
   process.stdout.write("\n" + res.message.join("\n") + "\n");
+  if (res.applied && consentVerb === "enable") {
+    // High-emotion re-ask moment #1: right after a successful enable.
+    await maybeSharePrompt(summary, true);
+  }
   return 0;
 }
 

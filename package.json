@@ -1,6 +1,6 @@
 {
   "name": "@m8t-labs/cache-cash",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A cache doctor for Claude Code: find the money your prompt cache is leaking.",
   "type": "module",
   "bin": {

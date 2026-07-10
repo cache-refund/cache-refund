@@ -22,6 +22,13 @@ export interface Ink {
   yellow(s: string): string;
   cyan(s: string): string;
   magenta(s: string): string;
+  /**
+   * The brand color for the recognizable box frame (v1.0.1). Bright magenta
+   * (SGR 95) — chosen over bright cyan 96 because bright cyan washes out on
+   * light terminal themes while bright magenta stays legible on both dark
+   * and light backgrounds. One place to change if the brand color moves.
+   */
+  brand(s: string): string;
 }
 
 function wrap(code: string, reset = "\x1b[0m") {
@@ -31,7 +38,7 @@ function wrap(code: string, reset = "\x1b[0m") {
 export function makeInk(enabled: boolean): Ink {
   if (!enabled) {
     const id = (s: string) => s;
-    return { enabled, bold: id, dim: id, green: id, red: id, yellow: id, cyan: id, magenta: id };
+    return { enabled, bold: id, dim: id, green: id, red: id, yellow: id, cyan: id, magenta: id, brand: id };
   }
   return {
     enabled,
@@ -42,6 +49,7 @@ export function makeInk(enabled: boolean): Ink {
     yellow: wrap("33"),
     cyan: wrap("36"),
     magenta: wrap("35"),
+    brand: wrap("95"),
   };
 }
 
@@ -104,6 +112,23 @@ function boxRow(text: string, align: "center" | "left", side: string): string {
   return `${side}${" ".repeat(left)}${text}${" ".repeat(right)}${side}`;
 }
 
+/** Optional frame styling for box(). */
+export interface BoxFrame {
+  /**
+   * Brand text woven into the TOP border (v1.0.1 recognizable frame):
+   * `╭─── cache-cash ─────…─────╮` (ASCII: `+--- cache-cash ---...---+`).
+   * The bottom border stays plain (no text). Width stays exactly BOX_WIDTH.
+   */
+  brand?: string;
+  /**
+   * Tint applied to the border glyphs only (top border incl. brand text,
+   * side bars, bottom border) — never to interior row text. Pass ink.brand;
+   * it is the identity when color is disabled, so ASCII/CI output stays
+   * byte-clean automatically.
+   */
+  tint?: (s: string) => string;
+}
+
 /**
  * Draw a fixed-width (<=57 col) box. `lines` may mix center/left aligned rows;
  * pass plain strings for centered text or {text, align} for control.
@@ -114,21 +139,38 @@ function boxRow(text: string, align: "center" | "left", side: string): string {
  * `ascii=true` (non-TTY / CI / --no-color) draws with plain +/-/| instead of
  * Unicode box-drawing chars — the CI smoke test
  * (`CI=1 node dist/cli.js | cat`) requires byte-clean ASCII output.
+ *
+ * `frame.brand` weaves the brand into the top border; `frame.tint` colors
+ * the border glyphs (see BoxFrame). Branded boxes use rounded corners
+ * (╭ ╮ ╰ ╯) so the frame reads as a deliberate mark, not a default table.
  */
-export function box(lines: Array<string | BoxLine>, ascii = false): string {
+export function box(lines: Array<string | BoxLine>, ascii = false, frame: BoxFrame = {}): string {
+  const branded = frame.brand !== undefined && frame.brand.length > 0;
+  const tint = frame.tint ?? ((s: string) => s);
   const h = ascii ? "-" : "─";
   const v = ascii ? "|" : "│";
-  const tl = ascii ? "+" : "┌";
-  const tr = ascii ? "+" : "┐";
-  const bl = ascii ? "+" : "└";
-  const br = ascii ? "+" : "┘";
-  const top = tl + h.repeat(BOX_INNER) + tr;
+  const tl = ascii ? "+" : branded ? "╭" : "┌";
+  const tr = ascii ? "+" : branded ? "╮" : "┐";
+  const bl = ascii ? "+" : branded ? "╰" : "└";
+  const br = ascii ? "+" : branded ? "╯" : "┘";
+
+  let top: string;
+  if (branded) {
+    // `╭─── cache-cash ────…────╮` — lead of 3 dashes, brand, then fill to
+    // exactly BOX_WIDTH visible columns.
+    const lead = `${tl}${h.repeat(3)} ${frame.brand} `;
+    const fill = Math.max(0, BOX_WIDTH - lead.length - 1);
+    top = lead + h.repeat(fill) + tr;
+  } else {
+    top = tl + h.repeat(BOX_INNER) + tr;
+  }
   const bottom = bl + h.repeat(BOX_INNER) + br;
+
   const body = lines.map((l) => {
     const line: BoxLine = typeof l === "string" ? { text: l } : l;
-    return boxRow(line.text, line.align ?? "center", v);
+    return boxRow(line.text, line.align ?? "center", tint(v));
   });
-  return [top, ...body, bottom].join("\n");
+  return [tint(top), ...body, tint(bottom)].join("\n");
 }
 
 export const boxWidth = BOX_WIDTH;

@@ -40,6 +40,7 @@ import {
   fmtTokensCompact,
   makeInk,
   makeSym,
+  stripAnsi,
   type Ink,
   type Sym,
   wrapLine,
@@ -52,13 +53,22 @@ export interface RenderOptions {
   tty: boolean;
   /** Color forced off (--no-color), independent of TTY. */
   noColor?: boolean;
+  /**
+   * Share-safe output by default (v1.0.1, privacy): human-facing output
+   * never prints project names unless the user opts in with `--projects`
+   * (local diagnosis). Applies to the Wrapped insight lines (biggest miss,
+   * biggest session) — the only human-render surfaces that carried project
+   * names. `--json` is machine mode and keeps its project fields regardless.
+   */
+  showProjects?: boolean;
 }
 
 const BRAND = "cache-cash";
 const METHODOLOGY_HINT = "methodology: npx @m8t-labs/cache-cash --explain";
 /** Contains the `dot` decoration -> a function of `sym`, not a plain const. */
 function shareHint(sym: Sym): string {
-  return `share: npx @m8t-labs/cache-cash --compact  ${sym.dot}  #cachecash`;
+  // v1.0.1: points at `card` (the canonical screenshot), not --compact.
+  return `share: npx @m8t-labs/cache-cash card  ${sym.dot}  #cachecash`;
 }
 /** Contains a prose em dash -> a function of `sym`, not a plain const. */
 function watchTeaser(sym: Sym): string {
@@ -144,9 +154,46 @@ export function trustLine(ink: Ink, sym: Sym): string {
   return ink.dim(`${BRAND} ${sym.dash} 100% local. Token counts + timestamps only. No content, no network.`);
 }
 
-export function scanCounterLine(filesScanned: number, filesTotal: number, pun: string, ink: Ink, sym: Sym): string {
-  const pct = filesTotal > 0 ? Math.round((filesScanned / filesTotal) * 100) : 100;
-  return ink.dim(`  scanning ${filesScanned}/${filesTotal} sessions (${pct}%) ${sym.dash} ${pun}`);
+/** Stateful in-place scan counter (v1.0.1 progress-line fix; replaces the old one-shot scanCounterLine). */
+export interface ScanProgress {
+  /**
+   * Next write payload for `done` of `total` files, or null when throttled
+   * (only emits when the integer percent advances, so a 21.7k-file corpus
+   * writes ~100 frames, not 21.7k). Every payload starts with "\r" and
+   * right-pads to the longest frame so far, so it can only ever rewrite the
+   * progress line itself — never anything above it (no-screen-clear law).
+   */
+  frame(done: number, total: number): string | null;
+  /**
+   * Final payload, REQUIRED after the run resolves: erases the progress line
+   * (overwrite with spaces + "\r") so no stale "scanning 0/1 (0%)" frame is
+   * left above the CHECKUP section — which already shows the final counts,
+   * so clearing (not rewriting to 100%) is the finalized state.
+   */
+  finish(): string;
+}
+
+export function makeScanProgress(pun: string, ink: Ink, sym: Sym): ScanProgress {
+  let lastPct = -1;
+  let maxLen = 0;
+  return {
+    frame(done: number, total: number): string | null {
+      const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+      if (pct === lastPct) return null;
+      lastPct = pct;
+      // Before discovery reports a total (the initial frame), show no counts
+      // rather than a made-up "0/1".
+      const counts = total > 0 ? `${done.toLocaleString()}/${total.toLocaleString()} sessions (${pct}%)` : "sessions…";
+      const line = ink.dim(`  scanning ${counts} ${sym.dash} ${pun}`);
+      const visLen = stripAnsi(line).length;
+      const pad = Math.max(0, maxLen - visLen);
+      if (visLen > maxLen) maxLen = visLen;
+      return `\r${line}${" ".repeat(pad)}`;
+    },
+    finish(): string {
+      return `\r${" ".repeat(maxLen)}\r`;
+    },
+  };
 }
 
 // ----------------------------------------------------------------- checkup
@@ -171,13 +218,30 @@ export function checkupLines(s: Summary, ink: Ink, sym: Sym): string[] {
 // ------------------------------------------------------------- score box
 
 /**
- * THE NUMBER: the <=57-col brandmarked score box. Also `card`'s top box.
+ * THE NUMBER: the <=57-col branded score box. Also `card`'s top box.
  * Ending-aware: endings A/B lead with the efficiency score; ending C
  * (subscription receipt) leads with the $-equivalent 1h-vs-5m receipt figure
  * — the receipt's headline number — with the score as the second line. The
  * ending kind is derived internally from the Summary (decideEnding) so
  * callers' signatures are unchanged.
+ *
+ * v1.0.1: the brand is woven into the TOP BORDER (`╭─── cache-cash ───…──╮`,
+ * tinted ink.brand) instead of a dim interior row — a recognizable frame in
+ * screenshots on any theme, one line shorter. All three endings share this
+ * frame (recognizability is the point); the certificate box uses it too.
  */
+const BOX_FRAME = (ink: Ink) => ({ brand: BRAND, tint: ink.brand });
+
+/**
+ * Absolute-scale line for the box (v1.0.1): `9.2B tokens · 593 sessions` —
+ * the flex for users whose dollar delta is modest. Token total = every token
+ * the analysis actually covered (creation + reads).
+ */
+function scaleLine(s: Summary, sym: Sym): string {
+  const total = s.tokens.creationTotal + s.tokens.readTotal;
+  return `${fmtTokensCompact(total)} tokens ${sym.dot} ${s.scope.sessions.toLocaleString()} sessions`;
+}
+
 export function numberBox(s: Summary, ink: Ink, sym: Sym): string {
   const kind = decideEnding(s);
   const score = s.efficiencyScore.toFixed(1);
@@ -193,28 +257,30 @@ export function numberBox(s: Summary, ink: Ink, sym: Sym): string {
     const figColor = delta < 0 ? ink.green : ink.yellow;
     return box(
       [
-        { text: ink.dim(BRAND) },
         { text: "" },
         { text: "YOUR 1H CACHE RECEIPT" },
         { text: figColor(ink.bold(fig)) },
         { text: "" },
         { text: ink.dim(`efficiency score: ${score} / 100`) },
+        { text: ink.dim(scaleLine(s, sym)) },
       ],
       sym.ascii,
+      BOX_FRAME(ink),
     );
   }
 
   const scoreColor = s.efficiencyScore >= 90 ? ink.green : s.efficiencyScore >= 70 ? ink.yellow : ink.red;
   return box(
     [
-      { text: ink.dim(BRAND) },
       { text: "" },
       { text: "CACHE EFFICIENCY SCORE" },
       { text: scoreColor(ink.bold(`${score} / 100`)) },
       { text: "" },
       { text: ink.dim(scoreLabel(s.efficiencyScore, sym, kind)) },
+      { text: ink.dim(scaleLine(s, sym)) },
     ],
     sym.ascii,
+    BOX_FRAME(ink),
   );
 }
 
@@ -278,19 +344,22 @@ export function verdictLine(s: Summary, ink: Ink, sym: Sym): string {
  * something the analyzer attributes). biggestMiss/worstDay may be null
  * (empty corpus) — guarded out, not padded.
  */
-export function wrappedLines(s: Summary, ink: Ink, sym: Sym): string[] {
+export function wrappedLines(s: Summary, ink: Ink, sym: Sym, showProjects = false): string[] {
   interface Candidate {
     extremity: number; // sort key, higher = more extreme/interesting
     text: string;
   }
   const w = s.wrapped;
   const cands: Candidate[] = [];
+  // Share-safe by default (v1.0.1): the " in <project>" clause only renders
+  // when the user opted in via --projects; both lines read clean without it.
+  const inProject = (project: string) => (showProjects ? ` in ${shortProject(project)}` : "");
 
   if (s.biggestMiss) {
     const m = s.biggestMiss;
     cands.push({
       extremity: m.dollars * 1000, // dollars dominate ranking; biggest single event first
-      text: `Your biggest single miss: a ${fmtTokensCompact(m.tokens)}-token re-warm in ${shortProject(m.project)} ${sym.dash} ${fmtDollarsEq(s, m.dollars)} in one turn.`,
+      text: `Your biggest single miss: a ${fmtTokensCompact(m.tokens)}-token re-warm${inProject(m.project)} ${sym.dash} ${fmtDollarsEq(s, m.dollars)} in one turn.`,
     });
   }
   if (s.worstDay) {
@@ -315,7 +384,7 @@ export function wrappedLines(s: Summary, ink: Ink, sym: Sym): string[] {
   if (w.biggestSessionCreation > 0) {
     cands.push({
       extremity: w.biggestSessionCreation / 1000,
-      text: `Your biggest session wrote ${fmtTokensCompact(w.biggestSessionCreation)} tokens of cache in ${shortProject(w.biggestSessionProject)}.`,
+      text: `Your biggest session wrote ${fmtTokensCompact(w.biggestSessionCreation)} tokens of cache${inProject(w.biggestSessionProject)}.`,
     });
   }
   const modelSwitch = s.leaks.find((l) => l.cause === "model-switch");
@@ -438,9 +507,10 @@ function endingCertified(s: Summary, ink: Ink, sym: Sym): EndingRender {
     cachingDelta >= 0
       ? `caching saved you ${fmtDollars(cachingDelta)} vs uncached`
       : `caching cost ${fmtDollars(Math.abs(cachingDelta))} more than uncached`;
+  // Same branded frame as the Beat-2 box (recognizability across endings);
+  // interior brand row removed with it.
   const certBox = box(
     [
-      { text: ink.dim(BRAND) },
       { text: "" },
       { text: ink.green(ink.bold(`CERTIFIED OPTIMAL ${sym.check}`)) },
       { text: "" },
@@ -449,6 +519,7 @@ function endingCertified(s: Summary, ink: Ink, sym: Sym): EndingRender {
       { text: ink.dim(`you're on ${onWhat} ${sym.dash} the cheaper TTL for your pattern`) },
     ],
     sym.ascii,
+    BOX_FRAME(ink),
   );
   const verdict =
     s.branch === "api-1h"
@@ -591,6 +662,76 @@ export function shareRail(ink: Ink, sym: Sym): string[] {
   return [ink.dim(METHODOLOGY_HINT), ink.dim(shareHint(sym))];
 }
 
+// ---------------------------------------------------------- share templates
+
+const SHARE_CTA_TAIL = "npx @m8t-labs/cache-cash #cachecash";
+const SHARE_BUDGET = 280;
+
+/**
+ * Prefilled social-post text for the share CTA (v1.0.1), per ending. Rules:
+ *   - NEVER includes project names (share-safe by construction — only
+ *     aggregate numbers, formatted exactly as the checkup renders them).
+ *   - <= 280 chars after substitution; the absolute-scale clause is the
+ *     first thing truncated if a pathological corpus overflows the budget.
+ *   - Social prose, not terminal output: real em dashes / middle dots
+ *     (the ASCII law is a terminal law; these strings go to intent URLs
+ *     and the clipboard).
+ */
+export function shareTemplate(s: Summary): string {
+  const kind = decideEnding(s);
+  const cf = s.counterfactual;
+  const rc = fmtPct(s.recoverableRatio);
+  const thresh = fmtPct(s.threshold);
+  const score = s.efficiencyScore.toFixed(1);
+  const tokens = fmtTokensCompact(s.tokens.creationTotal + s.tokens.readTotal);
+  const sessions = s.scope.sessions.toLocaleString();
+
+  let full: string;
+  let scaleClause: string;
+
+  if (kind === "A-enable") {
+    const quarterly = fmtDollars(Math.abs(cf.delta30d) * 3);
+    scaleClause = ""; // A's template carries no scale clause
+    full =
+      `cache-cash found ${fmtDollars(Math.abs(cf.delta1hMinus5m))} I was donating to the cloud — ` +
+      `${rc} of my cache writes were avoidable re-warms (break-even: ${thresh}). ` +
+      `One env line recovers ~${quarterly}/quarter. Check yours: ${SHARE_CTA_TAIL}`;
+  } else if (kind === "A-revert") {
+    const quarterly = fmtDollars(Math.abs(cf.delta30d) * 3);
+    scaleClause = "";
+    full =
+      `cache-cash found ${fmtDollars(Math.abs(cf.delta1hMinus5m))} I was donating to the cloud — ` +
+      `the 1h TTL costs more than 5m for my pattern. ` +
+      `One env line recovers ~${quarterly}/quarter. Check yours: ${SHARE_CTA_TAIL}`;
+  } else if (kind === "B") {
+    const rightTtl = s.branch === "api-1h" ? "The 1-hour TTL" : "The 5-minute default";
+    scaleClause = `, proven over ${tokens} tokens`;
+    full =
+      `Ran cache-cash expecting bad news — got CERTIFIED OPTIMAL ${score}/100. ` +
+      `${rightTtl} is actually right for how I work (R/C ${rc} < ${thresh})${scaleClause}. ` +
+      SHARE_CTA_TAIL;
+  } else {
+    scaleClause = ` across ${tokens} tokens · ${sessions} sessions`;
+    full =
+      `My 1h Claude Code cache absorbed ~${fmtDollars(Math.abs(cf.delta1hMinus5m))}-eq vs a 5m world ` +
+      `${windowLabel(s)} — efficiency ${score}/100${scaleClause}, ` +
+      `measured locally from my own transcripts. ${SHARE_CTA_TAIL}`;
+  }
+
+  if (full.length > SHARE_BUDGET && scaleClause.length > 0) {
+    full = full.replace(scaleClause, "");
+  }
+  // Belt-and-braces: if a pathological corpus still overflows, hard-trim
+  // ahead of the CTA tail so the npx command always survives intact.
+  if (full.length > SHARE_BUDGET) {
+    const tailIdx = full.lastIndexOf(SHARE_CTA_TAIL);
+    const head = full.slice(0, tailIdx).trimEnd();
+    const room = SHARE_BUDGET - SHARE_CTA_TAIL.length - 2;
+    full = `${head.slice(0, room).trimEnd()}… ${SHARE_CTA_TAIL}`;
+  }
+  return full;
+}
+
 // -------------------------------------------------------------- full render
 
 export interface FullRenderResult {
@@ -625,7 +766,7 @@ export function renderFull(s: Summary, opts: RenderOptions): FullRenderResult {
   lines.push("");
   lines.push(...gapBars(s, ink, useAscii, sym));
   lines.push("");
-  lines.push(...wrappedLines(s, ink, sym));
+  lines.push(...wrappedLines(s, ink, sym, opts.showProjects === true));
   lines.push("");
   lines.push(...ending.lines);
   lines.push("");
@@ -640,7 +781,7 @@ export function renderFull(s: Summary, opts: RenderOptions): FullRenderResult {
 export function renderCard(s: Summary, opts: RenderOptions): string {
   const ink = makeInk(opts.tty && !opts.noColor);
   const sym = makeSym(!opts.tty);
-  const top = wrappedLines(s, ink, sym).slice(1, 2); // first insight line only (already prefixed with "  » ")
+  const top = wrappedLines(s, ink, sym, opts.showProjects === true).slice(1, 2); // first insight line only (already prefixed with "  » ")
   const lines = [numberBox(s, ink, sym), "", ...top, "", shareRail(ink, sym)[1]];
   return lines.join("\n");
 }
@@ -663,7 +804,7 @@ export function renderCompact(s: Summary, opts: RenderOptions): string {
   if (s.worstDay) {
     lines.push(`worst day: ${s.worstDay.day} ${sym.dash} ${fmtDollarsEq(s, s.worstDay.dollars)} leaked`);
   }
-  const wl = wrappedLines(s, ink, sym).slice(1, 3);
+  const wl = wrappedLines(s, ink, sym, opts.showProjects === true).slice(1, 3);
   lines.push(...wl);
   lines.push(shareRail(ink, sym)[1]);
   return lines.join("\n");

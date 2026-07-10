@@ -11,12 +11,14 @@ import { stripAnsi, boxWidth, makeInk, makeSym } from "../src/format.js";
 import {
   checkupLines,
   decideEnding,
+  makeScanProgress,
   numberBox,
   renderCard,
   renderCompact,
   renderExplain,
   renderFull,
   renderMarkdown,
+  shareTemplate,
   wrappedLines,
 } from "../src/render.js";
 import {
@@ -346,6 +348,208 @@ describe("currency separation on shared surfaces", () => {
     ]) {
       expect(stripAnsi(out)).not.toContain("-eq");
     }
+  });
+});
+
+describe("share-safe output by default (v1.0.1, privacy): no project names unless --projects", () => {
+  // Fixture project strings that must never leak into default human output.
+  // fixtureEndingCReceipt: biggestMiss.project shortens to "orders-api",
+  // biggestSessionProject to "web-dashboard" (shortProject takes the last
+  // two dash segments); A/B fixtures shorten to widgetco-api / quietco-app.
+  const LEAKY = ["orders-api", "web-dashboard", "widgetco", "quietco"];
+  const SHOW = { tty: false, showProjects: true } as const;
+
+  it("default renders contain no project string, for all fixtures and all human modes", () => {
+    for (const s of [fixtureEndingAEnable, fixtureEndingBOptimal, fixtureEndingCReceipt]) {
+      for (const out of [
+        renderFull(s, NON_TTY).lines.join("\n"),
+        renderCard(s, NON_TTY),
+        renderCompact(s, NON_TTY),
+        renderMarkdown(s),
+        renderExplain(s),
+      ]) {
+        const text = stripAnsi(out);
+        for (const leak of LEAKY) {
+          expect(text, `project name "${leak}" leaked into default output`).not.toContain(leak);
+        }
+      }
+    }
+  });
+  it("--projects opts back in (wrapped lines carry the project again)", () => {
+    const full = stripAnsi(renderFull(fixtureEndingCReceipt, SHOW).lines.join("\n"));
+    expect(full).toContain("in orders-api");
+    expect(full).toContain("in web-dashboard");
+    const card = stripAnsi(renderCard(fixtureEndingCReceipt, SHOW));
+    // card's single wrapped line is the top-ranked insight; with this fixture
+    // that's the model-switch line (no project), so just assert card respects
+    // the flag without crashing and full render above carries both projects.
+    expect(card.length).toBeGreaterThan(0);
+  });
+  it("the default line reads clean without the clause (no dangling ' in ')", () => {
+    const text = stripAnsi(renderFull(fixtureEndingCReceipt, NON_TTY).lines.join("\n")).replace(/\n/g, " ");
+    expect(text).toMatch(/-token re-warm [-—] \$/); // "re-warm — $7.03-eq", no " in <proj>"
+    expect(text).toMatch(/tokens of cache\./); // "…of cache." with no project tail
+  });
+});
+
+describe("branded box frame (v1.0.1): brand woven into the top border", () => {
+  it("unicode frame: top border carries the brand, bottom is plain, width exactly 57", () => {
+    const rendered = stripAnsi(numberBox(fixtureEndingCReceipt, makeInk(true), makeSym(false)));
+    const lines = rendered.split("\n");
+    expect(lines[0]).toContain("─ cache-cash ");
+    expect(lines[0].startsWith("╭")).toBe(true);
+    expect(lines[0].endsWith("╮")).toBe(true);
+    expect(lines[lines.length - 1]).not.toContain("cache-cash");
+    expect(lines[lines.length - 1].startsWith("╰")).toBe(true);
+    for (const line of lines) expect(line.length).toBe(boxWidth);
+    // interior no longer carries the old dim brand row
+    const interior = lines.slice(1, -1).join("\n");
+    expect(interior).not.toContain("cache-cash");
+  });
+  it("ASCII fallback frame: `+--- cache-cash ---...---+`, width exactly 57, byte-clean", () => {
+    const rendered = stripAnsi(numberBox(fixtureEndingCReceipt, makeInk(false), makeSym(true)));
+    const lines = rendered.split("\n");
+    expect(lines[0].startsWith("+--- cache-cash ")).toBe(true);
+    expect(lines[0].endsWith("+")).toBe(true);
+    for (const line of lines) {
+      expect(line.length).toBe(boxWidth);
+      for (const ch of line) expect(ch.codePointAt(0)!).toBeLessThanOrEqual(127);
+    }
+  });
+  it("all three endings share the frame (score box A/B + receipt box C + certificate box B)", () => {
+    for (const s of [fixtureEndingAEnable, fixtureEndingBOptimal, fixtureEndingCReceipt]) {
+      const top = stripAnsi(numberBox(s, makeInk(false), makeSym(true))).split("\n")[0];
+      expect(top).toContain(" cache-cash ");
+    }
+    // the CERTIFIED OPTIMAL certificate box uses the same branded frame
+    const bFull = stripAnsi(renderFull(fixtureEndingBOptimal, NON_TTY).lines.join("\n"));
+    const brandedTops = bFull.split("\n").filter((l) => l.startsWith("+--- cache-cash "));
+    expect(brandedTops.length).toBe(2); // score box + certificate box
+  });
+});
+
+describe("scan-progress frames (v1.0.1 progress-line fix): finalized, never stuck", () => {
+  function makeProgress() {
+    return makeScanProgress("following the money…", makeInk(false), makeSym(false));
+  }
+  it("initial frame (before discovery) shows no made-up counts", () => {
+    const p = makeProgress();
+    const first = p.frame(0, 0);
+    expect(first).not.toBeNull();
+    expect(first!).toContain("scanning sessions…");
+    expect(first!).not.toContain("0/0");
+    expect(first!.startsWith("\r")).toBe(true);
+  });
+  it("throttles to integer-percent changes and every frame starts with \\r (rewrites only its own line)", () => {
+    const p = makeProgress();
+    p.frame(0, 0);
+    const frames: string[] = [];
+    for (let i = 1; i <= 1000; i++) {
+      const f = p.frame(i, 1000);
+      if (f !== null) frames.push(f);
+    }
+    // ~100 percent-change frames, not 1000
+    expect(frames.length).toBeGreaterThan(50);
+    expect(frames.length).toBeLessThan(150);
+    for (const f of frames) {
+      expect(f.startsWith("\r")).toBe(true);
+      expect(f).not.toContain("\n"); // never spills onto another line
+    }
+    expect(frames[frames.length - 1]).toContain("(100%)");
+  });
+  it("finish() erases the line completely — the last emitted state is empty, not a stuck frame", () => {
+    const p = makeProgress();
+    const longest = Math.max(
+      ...[p.frame(0, 0), p.frame(1, 3), p.frame(2, 3), p.frame(3, 3)]
+        .filter((f): f is string => f !== null)
+        .map((f) => f.replace(/^\r/, "").length),
+    );
+    const fin = p.finish();
+    expect(fin.startsWith("\r")).toBe(true);
+    expect(fin.endsWith("\r")).toBe(true);
+    const erased = fin.slice(1, -1);
+    expect(erased.trim()).toBe(""); // spaces only — the line is blanked
+    expect(erased.length).toBeGreaterThanOrEqual(longest); // covers the widest frame
+  });
+});
+
+describe("share templates (v1.0.1 share CTA)", () => {
+  const PROJECT_LEAKS = ["orders-api", "web-dashboard", "widgetco", "quietco", "-Users-"];
+
+  it("ending A: delta + R/C + quarterly figure, under 280 chars", () => {
+    const t = shareTemplate(fixtureEndingAEnable);
+    expect(decideEnding(fixtureEndingAEnable)).toBe("A-enable");
+    expect(t).toContain("$380.00 I was donating to the cloud");
+    expect(t).toContain("36.0% of my cache writes were avoidable re-warms");
+    expect(t).toContain("(break-even: 39.5%)");
+    expect(t).toContain(`~$${(380 * 3).toLocaleString("en-US", { minimumFractionDigits: 2 })}/quarter`);
+    expect(t).toContain("npx @m8t-labs/cache-cash #cachecash");
+    expect(t.length).toBeLessThanOrEqual(280);
+  });
+  it("ending B: score + R/C + token scale, under 280 chars", () => {
+    const t = shareTemplate(fixtureEndingBOptimal);
+    expect(t).toContain("CERTIFIED OPTIMAL 96.3/100");
+    expect(t).toContain("The 5-minute default is actually right");
+    expect(t).toContain("R/C 5.0% < 39.5%");
+    expect(t).toMatch(/proven over [\d.]+[MBK]? tokens/);
+    expect(t.length).toBeLessThanOrEqual(280);
+  });
+  it("ending C: receipt figure + window + scale, under 280 chars", () => {
+    const t = shareTemplate(fixtureEndingCReceipt);
+    expect(t).toContain("absorbed ~$2,500.95-eq vs a 5m world in the last 90 days");
+    expect(t).toContain("efficiency 98.5/100");
+    expect(t).toMatch(/across [\d.]+B tokens · 590 sessions/);
+    expect(t).toContain("measured locally from my own transcripts");
+    expect(t.length).toBeLessThanOrEqual(280);
+  });
+  it("never includes a project name, any ending", () => {
+    for (const s of [fixtureEndingAEnable, fixtureEndingBOptimal, fixtureEndingCReceipt]) {
+      const t = shareTemplate(s);
+      for (const leak of PROJECT_LEAKS) {
+        expect(t, `template leaked "${leak}"`).not.toContain(leak);
+      }
+    }
+  });
+  it("stays under 280 with pathologically large numbers (scale clause truncates first)", () => {
+    const monster = {
+      ...fixtureEndingCReceipt,
+      scope: { ...fixtureEndingCReceipt.scope, sessions: 1_234_567 },
+      tokens: {
+        ...fixtureEndingCReceipt.tokens,
+        creationTotal: 999_999_999_999,
+        readTotal: 999_999_999_999,
+      },
+      counterfactual: {
+        ...fixtureEndingCReceipt.counterfactual,
+        delta1hMinus5m: -123_456_789.12,
+        delta30d: -41_152_263.04,
+      },
+    };
+    const t = shareTemplate(monster);
+    expect(t.length).toBeLessThanOrEqual(280);
+    expect(t).toContain("npx @m8t-labs/cache-cash #cachecash"); // CTA always survives
+  });
+});
+
+describe("scale line + card share hint (v1.0.1)", () => {
+  it("the box carries '<tokens> tokens · <sessions> sessions' for all endings", () => {
+    for (const s of [fixtureEndingAEnable, fixtureEndingBOptimal, fixtureEndingCReceipt]) {
+      const rendered = stripAnsi(numberBox(s, makeInk(false), makeSym(true)));
+      const total = s.tokens.creationTotal + s.tokens.readTotal;
+      expect(rendered).toMatch(/[\d.]+[MBK]? tokens - [\d,]+ sessions/); // ASCII dot
+      expect(rendered).toContain(`${s.scope.sessions.toLocaleString()} sessions`);
+      expect(total).toBeGreaterThan(0); // fixture sanity
+      for (const line of rendered.split("\n")) expect(line.length).toBe(boxWidth);
+    }
+  });
+  it("share hint points at `card` everywhere it renders", () => {
+    const full = stripAnsi(renderFull(fixtureEndingCReceipt, NON_TTY).lines.join("\n"));
+    expect(full).toContain("share: npx @m8t-labs/cache-cash card");
+    expect(full).not.toContain("share: npx @m8t-labs/cache-cash --compact");
+    const compact = stripAnsi(renderCompact(fixtureEndingCReceipt, NON_TTY));
+    expect(compact).toContain("share: npx @m8t-labs/cache-cash card");
+    const card = stripAnsi(renderCard(fixtureEndingCReceipt, NON_TTY));
+    expect(card).toContain("share: npx @m8t-labs/cache-cash card");
   });
 });
 

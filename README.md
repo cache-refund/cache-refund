@@ -184,6 +184,13 @@ recoverable-leak dollars are *net* of what a 1h TTL would itself cost, so a row
 can legitimately be $0 when the tail write cancels the saving. Zero rows are
 honest, not missing data.
 
+**Does sharing phone home?**
+No. The CLI itself makes zero network requests, sharing included. The optional
+share prompt (interactive terminal runs only) opens *your own browser* with a
+prefilled post — text you read, and can edit or abandon, before anything is
+sent — or copies the markdown block to your local clipboard. Nothing is
+transmitted by `cache-cash`, ever, and the prompt asks once; Enter skips it.
+
 **I think a number is wrong.**
 That is the highest-priority kind of bug report. Open a
 [wrong-number issue](https://github.com/m8t-labs/cachecash/issues/new?template=wrong-number.yml)

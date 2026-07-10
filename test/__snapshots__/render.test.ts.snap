@@ -6,8 +6,8 @@ R/C = 36.0% > break-even 39.5% - switching to 1h saves ~$380.00/30d
 biggest miss: 441K-token re-warm - $7.62 in one turn
 worst day: 2026-06-28 - $62.40 leaked
   > Worst day: 2026-06-28 leaked $62.40 (3.1M tokens) to expired cache.
-  > Your biggest single miss: a 441K-token re-warm in widgetco-api - $7.62 in
-share: npx @m8t-labs/cache-cash --compact  -  #cachecash"
+  > Your biggest single miss: a 441K-token re-warm - $7.62 in one turn.
+share: npx @m8t-labs/cache-cash card  -  #cachecash"
 `;
 
 exports[`snapshots (ANSI-stripped) > --compact, all three fixtures 2`] = `
@@ -17,7 +17,7 @@ biggest miss: 88K-token re-warm - $0.61 in one turn
 worst day: 2026-06-15 - $4.10 leaked
   > Worst day: 2026-06-15 leaked $4.10 (410K tokens) to expired cache.
   > Your peak hour is 10:00 - 260 turns, more than any other hour.
-share: npx @m8t-labs/cache-cash --compact  -  #cachecash"
+share: npx @m8t-labs/cache-cash card  -  #cachecash"
 `;
 
 exports[`snapshots (ANSI-stripped) > --compact, all three fixtures 3`] = `
@@ -27,7 +27,7 @@ biggest miss: 612K-token re-warm - $7.03-eq in one turn
 worst day: 2026-06-10 - $49.21-eq leaked
   > Model switches invalidated 70.3M tokens of cache ($513.86-eq).
   > Your peak hour is 00:00 - 4,774 turns, more than any other hour.
-share: npx @m8t-labs/cache-cash --compact  -  #cachecash"
+share: npx @m8t-labs/cache-cash card  -  #cachecash"
 `;
 
 exports[`snapshots (ANSI-stripped) > --explain, subscriber fixture 1`] = `
@@ -146,48 +146,48 @@ _methodology: npx @m8t-labs/cache-cash --explain_"
 `;
 
 exports[`snapshots (ANSI-stripped) > card, all three fixtures 1`] = `
-"+-------------------------------------------------------+
-|                      cache-cash                       |
+"+--- cache-cash ----------------------------------------+
 |                                                       |
 |                CACHE EFFICIENCY SCORE                 |
 |                      71.2 / 100                       |
 |                                                       |
 |                  leaking real money                   |
+|              205.0M tokens - 42 sessions              |
 +-------------------------------------------------------+
 
   > Worst day: 2026-06-28 leaked $62.40 (3.1M tokens) to expired cache.
 
-share: npx @m8t-labs/cache-cash --compact  -  #cachecash"
+share: npx @m8t-labs/cache-cash card  -  #cachecash"
 `;
 
 exports[`snapshots (ANSI-stripped) > card, all three fixtures 2`] = `
-"+-------------------------------------------------------+
-|                      cache-cash                       |
+"+--- cache-cash ----------------------------------------+
 |                                                       |
 |                CACHE EFFICIENCY SCORE                 |
 |                      96.3 / 100                       |
 |                                                       |
 |                   certified optimal                   |
+|              360.0M tokens - 80 sessions              |
 +-------------------------------------------------------+
 
   > Worst day: 2026-06-15 leaked $4.10 (410K tokens) to expired cache.
 
-share: npx @m8t-labs/cache-cash --compact  -  #cachecash"
+share: npx @m8t-labs/cache-cash card  -  #cachecash"
 `;
 
 exports[`snapshots (ANSI-stripped) > card, all three fixtures 3`] = `
-"+-------------------------------------------------------+
-|                      cache-cash                       |
+"+--- cache-cash ----------------------------------------+
 |                                                       |
 |                 YOUR 1H CACHE RECEIPT                 |
 |         saved ~$2,500.95-eq vs 5m (last 90d)          |
 |                                                       |
 |             efficiency score: 98.5 / 100              |
+|              15.0B tokens - 590 sessions              |
 +-------------------------------------------------------+
 
   > Model switches invalidated 70.3M tokens of cache ($513.86-eq).
 
-share: npx @m8t-labs/cache-cash --compact  -  #cachecash"
+share: npx @m8t-labs/cache-cash card  -  #cachecash"
 `;
 
 exports[`snapshots (ANSI-stripped) > ending A (enable) full render 1`] = `
@@ -198,13 +198,13 @@ CHECKUP
   OK TTL received (last 7d): 5m OK
   [!] ttl-expiry re-warms: 9.0M tokens ($420.50)
 
-+-------------------------------------------------------+
-|                      cache-cash                       |
++--- cache-cash ----------------------------------------+
 |                                                       |
 |                CACHE EFFICIENCY SCORE                 |
 |                      71.2 / 100                       |
 |                                                       |
 |                  leaking real money                   |
+|              205.0M tokens - 42 sessions              |
 +-------------------------------------------------------+
 
 GAP BREAKDOWN (cache-write tokens by re-warm gap)
@@ -216,9 +216,8 @@ R/C = 36.0% > break-even 39.5% - switching to 1h saves ~$380.00/30d
 
 YOUR CACHE, WRAPPED
   > Worst day: 2026-06-28 leaked $62.40 (3.1M tokens) to expired cache.
-  > Your biggest single miss: a 441K-token re-warm in widgetco-api - $7.62 in
-    one turn.
-  > Your biggest session wrote 5.2M tokens of cache in widgetco-api.
+  > Your biggest single miss: a 441K-token re-warm - $7.62 in one turn.
+  > Your biggest session wrote 5.2M tokens of cache.
   > Your peak hour is 14:00 - 420 turns, more than any other hour.
   > Model switches invalidated 500K tokens of cache ($3.13).
 
@@ -235,7 +234,7 @@ This edits ~/.claude/settings.json (backed up first). Applies to new sessions
 only.
 
 methodology: npx @m8t-labs/cache-cash --explain
-share: npx @m8t-labs/cache-cash --compact  -  #cachecash"
+share: npx @m8t-labs/cache-cash card  -  #cachecash"
 `;
 
 exports[`snapshots (ANSI-stripped) > ending B (certified optimal) full render 1`] = `
@@ -246,13 +245,13 @@ CHECKUP
   OK TTL received (last 7d): 5m OK
   [!] ttl-expiry re-warms: 2.0M tokens ($18.20)
 
-+-------------------------------------------------------+
-|                      cache-cash                       |
++--- cache-cash ----------------------------------------+
 |                                                       |
 |                CACHE EFFICIENCY SCORE                 |
 |                      96.3 / 100                       |
 |                                                       |
 |                   certified optimal                   |
+|              360.0M tokens - 80 sessions              |
 +-------------------------------------------------------+
 
 GAP BREAKDOWN (cache-write tokens by re-warm gap)
@@ -265,13 +264,11 @@ R/C = 5.0% <= break-even 39.5% - 1h would cost ~$48.00/30d MORE
 YOUR CACHE, WRAPPED
   > Worst day: 2026-06-15 leaked $4.10 (410K tokens) to expired cache.
   > Your peak hour is 10:00 - 260 turns, more than any other hour.
-  > Your biggest session wrote 1.8M tokens of cache in quietco-app.
-  > Your biggest single miss: a 88K-token re-warm in quietco-app - $0.61 in one
-    turn.
+  > Your biggest session wrote 1.8M tokens of cache.
+  > Your biggest single miss: a 88K-token re-warm - $0.61 in one turn.
   > You've used Claude Code 4 days in a row (33 active days this window).
 
-+-------------------------------------------------------+
-|                      cache-cash                       |
++--- cache-cash ----------------------------------------+
 |                                                       |
 |                 CERTIFIED OPTIMAL OK                  |
 |                                                       |
@@ -285,7 +282,7 @@ cost ~$48.00/30d more.
 proof: actual $246.00 vs 5m-world $246.00 vs 1h-world $342.00, over 60d.
 
 methodology: npx @m8t-labs/cache-cash --explain
-share: npx @m8t-labs/cache-cash --compact  -  #cachecash"
+share: npx @m8t-labs/cache-cash card  -  #cachecash"
 `;
 
 exports[`snapshots (ANSI-stripped) > ending C (subscriber receipt) full render 1`] = `
@@ -296,13 +293,13 @@ CHECKUP
   OK TTL received (last 7d): 1h OK
   [!] ttl-expiry re-warms: 102.8M tokens ($618.60-eq)
 
-+-------------------------------------------------------+
-|                      cache-cash                       |
++--- cache-cash ----------------------------------------+
 |                                                       |
 |                 YOUR 1H CACHE RECEIPT                 |
 |         saved ~$2,500.95-eq vs 5m (last 90d)          |
 |                                                       |
 |             efficiency score: 98.5 / 100              |
+|              15.0B tokens - 590 sessions              |
 +-------------------------------------------------------+
 
 GAP BREAKDOWN (cache-write tokens by re-warm gap)
@@ -316,9 +313,8 @@ YOUR CACHE, WRAPPED
   > Model switches invalidated 70.3M tokens of cache ($513.86-eq).
   > Your peak hour is 00:00 - 4,774 turns, more than any other hour.
   > Worst day: 2026-06-10 leaked $49.21-eq (7.6M tokens) to expired cache.
-  > Your biggest session wrote 21.2M tokens of cache in web-dashboard.
-  > Your biggest single miss: a 612K-token re-warm in orders-api - $7.03-eq in
-    one turn.
+  > Your biggest session wrote 21.2M tokens of cache.
+  > Your biggest single miss: a 612K-token re-warm - $7.03-eq in one turn.
 
 YOUR RECEIPT
 
@@ -340,5 +336,5 @@ API rates.
 watch (TTL regression alarm): coming in v1.1 - watch the repo
 
 methodology: npx @m8t-labs/cache-cash --explain
-share: npx @m8t-labs/cache-cash --compact  -  #cachecash"
+share: npx @m8t-labs/cache-cash card  -  #cachecash"
 `;

@@ -6,6 +6,27 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.1] — 2026-07-10
+
+- **Share-safe output by default** (privacy): human-facing output no longer
+  prints project names anywhere; a new `--projects` flag opts back in for
+  local diagnosis. `--json` (machine mode) keeps its project fields unchanged.
+- **Branded, recognizable frame**: the score/receipt box weaves `cache-cash`
+  into its top border (`╭─── cache-cash ───…──╮`, bright magenta on TTYs;
+  `+--- cache-cash ---...---+` in ASCII/CI mode), replacing the interior
+  brand line. All three endings share the frame.
+- **Progress-line fix**: the live scan counter is now a real in-place counter
+  (percent-throttled) and is erased on completion — no more stuck
+  "scanning 0/1 sessions (0%)" frame above the checkup.
+- **Share prompt** (interactive checkup runs only, once per machine, Enter
+  skips): post to X / Bluesky via your own browser with a prefilled,
+  editable summary — never project names — or copy the markdown block for
+  Slack. The CLI still makes zero network requests; see SECURITY.md.
+  Re-offered only right after a successful `enable` and after a `recheck`
+  with positive savings.
+- **Scale line on the card**: the box now shows `<tokens> tokens ·
+  <sessions> sessions`; the share hint now points at `card`.
+
 ## [1.0.0] — 2026-07-10
 
 Initial public release.

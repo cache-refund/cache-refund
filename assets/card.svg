@@ -6,6 +6,7 @@
       .txt { fill: #e6e6ef; }
       .green { fill: #3fd68f; font-weight: 600; }
       .head { fill: #e6e6ef; font-weight: 700; letter-spacing: 1px; }
+      .brand { fill: #d75fd7; font-weight: 700; }
       .orange { fill: #e8a15d; }
     </style>
   </defs>
@@ -22,18 +23,21 @@
   <!-- prompt -->
   <text x="44" y="86" class="t dim">$ <tspan class="txt">npx @m8t-labs/cache-cash card</tspan></text>
 
-  <!-- receipt box -->
-  <rect x="44" y="108" width="524" height="172" rx="10" fill="none" stroke="#8a7ff0" stroke-width="1.6"/>
-  <text x="306" y="134" text-anchor="middle" class="t dim" font-size="13">cache-cash</text>
-  <text x="306" y="180" text-anchor="middle" class="t head">YOUR 1H CACHE RECEIPT</text>
-  <text x="306" y="208" text-anchor="middle" class="t green">saved ~$2,515.89-eq vs 5m (last 90d)</text>
-  <text x="306" y="254" text-anchor="middle" class="t txt">efficiency score: 98.5 / 100</text>
+  <!-- receipt box: brand woven into the top border -->
+  <rect x="44" y="112" width="524" height="168" rx="10" fill="none" stroke="#d75fd7" stroke-width="1.6"/>
+  <rect x="66" y="103" width="118" height="18" fill="#15161c"/>
+  <text x="125" y="117" text-anchor="middle" class="t brand" font-size="14">cache-cash</text>
+
+  <text x="306" y="158" text-anchor="middle" class="t head">YOUR 1H CACHE RECEIPT</text>
+  <text x="306" y="186" text-anchor="middle" class="t green">saved ~$2,538.87-eq vs 5m (last 90d)</text>
+  <text x="306" y="228" text-anchor="middle" class="t txt">efficiency score: 98.5 / 100</text>
+  <text x="306" y="254" text-anchor="middle" class="t dim">14.9B tokens · 593 sessions</text>
 
   <!-- wrapped line -->
   <text x="44" y="322" class="t"><tspan class="orange">›</tspan><tspan class="txt"> Model switches invalidated 69.4M tokens of cache </tspan><tspan class="orange">($510.91-eq)</tspan><tspan class="txt">.</tspan></text>
 
   <!-- share rail -->
-  <text x="44" y="364" class="t dim">share: npx @m8t-labs/cache-cash --compact  ·  #cachecash</text>
+  <text x="44" y="364" class="t dim">share: npx @m8t-labs/cache-cash card  ·  #cachecash</text>
 
   <!-- footer note -->
   <text x="44" y="404" class="t dim" font-size="12.5">100% local · token counts + timestamps only · nothing leaves this machine</text>

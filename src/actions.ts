@@ -65,6 +65,13 @@ export interface ActionResult {
   applied: boolean;
   /** Lines to print to the user. */
   message: string[];
+  /**
+   * runRecheck only (v1.0.1, additive): the computed "since switching" $
+   * delta (positive = 1h saved money vs a 5m world). Exposed so cli.ts can
+   * re-offer the share prompt after a receipt that shows positive savings —
+   * one of the two high-emotion re-ask moments. Never set by other actions.
+   */
+  savedSinceEnable?: number;
 }
 
 const SETTINGS_REL = [".claude", "settings.json"];
@@ -265,6 +272,15 @@ interface BaselineFile {
   delta30d: number;
   /** Actual reconstructed spend over the enabling summary's window, for receipts math. */
   actualCostAtEnable: number;
+  /**
+   * v1.0.1 share-CTA frequency guard: set when the checkup's share prompt
+   * has been shown once on this machine (aggregate metadata only — a
+   * timestamp, never content). Lives in this file because the baseline is
+   * the one local state file cache-cash owns; readBaseline() still requires
+   * `enabled_at`, so a share-only file (recorded before any enable) is
+   * correctly NOT a recheck baseline.
+   */
+  sharePrompt?: { shownAt: string };
 }
 
 /**
@@ -275,6 +291,10 @@ interface BaselineFile {
  * re-run enable — not silent corruption of anything load-bearing).
  */
 function writeBaseline(home: string, summary: Summary): void {
+  // Preserve any pre-existing share-prompt marker (and be tolerant of a
+  // share-only file written before the first enable) — a fresh enable must
+  // never re-arm the once-per-machine share prompt.
+  const existing = readBaselineRaw(home);
   const baseline: BaselineFile = {
     enabled_at: new Date().toISOString(),
     window_days: summary.window.days,
@@ -284,22 +304,48 @@ function writeBaseline(home: string, summary: Summary): void {
     efficiencyScore: summary.efficiencyScore,
     delta30d: summary.counterfactual.delta30d,
     actualCostAtEnable: summary.counterfactual.actualCost,
+    ...(existing?.sharePrompt ? { sharePrompt: existing.sharePrompt } : {}),
   };
   mkdirSync(join(home, ".claude"), { recursive: true });
   writeFileSync(baselinePath(home), JSON.stringify(baseline, null, 2) + "\n", "utf8");
 }
 
-function readBaseline(home: string): BaselineFile | null {
+/** Raw baseline read: tolerates partial shapes (e.g. a share-only file). */
+function readBaselineRaw(home: string): Partial<BaselineFile> | null {
   const p = baselinePath(home);
   if (!existsSync(p)) return null;
   try {
-    const raw = readFileSync(p, "utf8");
-    const parsed = JSON.parse(raw) as Partial<BaselineFile>;
-    if (typeof parsed.enabled_at !== "string") return null;
-    return parsed as BaselineFile;
+    const parsed = JSON.parse(readFileSync(p, "utf8")) as unknown;
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    return parsed as Partial<BaselineFile>;
   } catch {
     return null;
   }
+}
+
+function readBaseline(home: string): BaselineFile | null {
+  const parsed = readBaselineRaw(home);
+  if (!parsed || typeof parsed.enabled_at !== "string") return null;
+  return parsed as BaselineFile;
+}
+
+// ------------------------------------------------------- share-prompt guard
+
+/**
+ * v1.0.1 share-CTA frequency guard (cli.ts consumes these two). The checkup
+ * asks ONCE per machine ever; cli.ts bypasses the check (but still records)
+ * at the two high-emotion re-ask moments (post-enable, positive recheck).
+ * Aggregate-numbers-only discipline: the marker is a timestamp, nothing else.
+ */
+export function sharePromptShown(home: string): boolean {
+  return typeof readBaselineRaw(home)?.sharePrompt?.shownAt === "string";
+}
+
+export function recordSharePromptShown(home: string): void {
+  const existing = readBaselineRaw(home) ?? {};
+  const next = { ...existing, sharePrompt: { shownAt: new Date().toISOString() } };
+  mkdirSync(join(home, ".claude"), { recursive: true });
+  writeFileSync(baselinePath(home), JSON.stringify(next, null, 2) + "\n", "utf8");
 }
 
 // ---------------------------------------------------------------- enable
@@ -586,7 +632,7 @@ export async function runRecheck(opts: ActionOpts): Promise<ActionResult> {
           " volume can flip the break-even the other way).",
   ];
 
-  return { applied: false, message };
+  return { applied: false, message, savedSinceEnable: saved };
 }
 
 // ------------------------------------------------------------------ utils
