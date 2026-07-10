@@ -136,8 +136,7 @@ tool's own confirmation prompt is the only write path, same as the CLI.
 npx cache-refund card
 ```
 
-Post it with #cacherefund, or drop it in the pinned Discussion:
-<!-- DISCUSSION_URL -->
+Post it with #cacherefund, or drop it in [the pinned Discussion](https://github.com/m8t-labs/cache-refund/discussions/4).
 
 ## Other output modes
 
