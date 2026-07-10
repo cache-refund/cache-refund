@@ -179,6 +179,15 @@ maybe("standalone enable/revert route before the pipeline (no transcripts requir
     expect(r.stderr).toContain("No transcripts found");
   });
 
+  it("share is a recognized subcommand (empty HOME -> no-transcripts exit 1, not a usage error)", () => {
+    const home = freshHome();
+
+    const r = runCli(home, ["share"]);
+
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain("No transcripts found");
+  });
+
   it("enable --yes STILL writes the recheck baseline when transcripts exist (no regression from the early route)", () => {
     const home = freshHome();
     const dir = join(home, ".claude", "projects", "p");

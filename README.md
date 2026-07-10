@@ -142,6 +142,7 @@ Post it with #cacherefund, or drop it in the pinned Discussion:
 ## Other output modes
 
 ```bash
+npx cache-refund share      # deal your card + the share prompt, any time
 npx cache-refund card       # the canonical screenshot: section box + top Wrapped line
 npx cache-refund --md       # paste-ready markdown block for Slack / Teams
 npx cache-refund --compact  # ~7 lines: score, R/C verdict, biggest miss, worst day

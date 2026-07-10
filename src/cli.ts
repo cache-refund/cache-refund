@@ -67,7 +67,7 @@ import type { Branch, Summary } from "./types.js";
 
 // ------------------------------------------------------------------ argv
 
-type Subcommand = "checkup" | "card" | "enable" | "revert" | "verify" | "recheck";
+type Subcommand = "checkup" | "card" | "enable" | "revert" | "verify" | "recheck" | "share";
 
 interface Args {
   subcommand: Subcommand;
@@ -90,7 +90,7 @@ interface Args {
   projects: boolean;
 }
 
-const SUBCOMMANDS = new Set<Subcommand>(["card", "enable", "revert", "verify", "recheck"]);
+const SUBCOMMANDS = new Set<Subcommand>(["card", "enable", "revert", "verify", "recheck", "share"]);
 
 function parseArgs(argv: string[]): Args {
   const args: Args = {
@@ -221,7 +221,12 @@ function promptLine(question: string): Promise<string> {
 async function maybeSharePrompt(summary: Summary, force: boolean): Promise<void> {
   const interactive = process.stdout.isTTY && !process.env.CI;
   if (!interactive) return;
-  if (!force && sharePromptShown(homedir())) return;
+  if (!force && sharePromptShown(homedir())) {
+    // The auto-prompt fired on an earlier run (once per machine, no nag) —
+    // keep sharing reachable on demand instead of silently disappearing.
+    process.stdout.write(makeInk(true).dim("\nshare anytime: npx cache-refund share\n"));
+    return;
+  }
 
   const answer = await promptLine(`\n${SHARE_PROMPT_LINE}`);
   // Recorded regardless of the answer: once per machine, no nag.
@@ -261,7 +266,10 @@ async function maybeSharePrompt(summary: Summary, force: boolean): Promise<void>
     } else {
       process.stdout.write(md + "\n\n(no clipboard tool found — copy the block above)\n");
     }
+    return;
   }
+  // Skipped: stay quiet, but leave the door visible.
+  process.stdout.write(makeInk(true).dim("share anytime: npx cache-refund share\n"));
 }
 
 /** The one interactive branch-ambiguity question: "subscription or API/Bedrock/Vertex?". */
@@ -398,6 +406,14 @@ async function dispatch(
       process.stdout.write(renderCard(summary, opts) + "\n");
       return 0;
 
+    case "share":
+      // Sharing on demand: same card + prompt as the checkup's closing frame,
+      // with the once-per-machine guard bypassed (running `share` IS consent
+      // to be asked).
+      process.stdout.write(renderCard(summary, opts) + "\n");
+      await maybeSharePrompt(summary, true);
+      return 0;
+
     // "enable" / "revert" never reach this switch: non-json runs are
     // early-routed to runStandaloneAction() in main() BEFORE the pipeline
     // (they must work without transcripts), and --json runs return via the
@@ -466,7 +482,7 @@ async function renderCheckup(
   const kind = decideEnding(summary);
   const ending = renderEnding(summary, kind, ink, sym);
   process.stdout.write(ending.lines.join("\n") + "\n\n");
-  process.stdout.write(shareRail(ink, sym).join("\n") + "\n");
+  process.stdout.write(shareRail(ink, sym, { closingCardFollows: true }).join("\n") + "\n");
 
   const code = await maybeConsentFromEnding(args, summary, ending.needsConsent, ending.consentVerb);
 

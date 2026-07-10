@@ -659,7 +659,10 @@ function leakRowsForDisplay(leaks: LeakRow[]): LeakRow[] {
 
 // -------------------------------------------------------------- share rail
 
-export function shareRail(ink: Ink, sym: Sym): string[] {
+export function shareRail(ink: Ink, sym: Sym, opts?: { closingCardFollows?: boolean }): string[] {
+  // When the closing card follows (TTY checkups), it carries the share line
+  // itself — printing the hint here too would duplicate it on screen.
+  if (opts?.closingCardFollows) return [ink.dim(METHODOLOGY_HINT)];
   return [ink.dim(METHODOLOGY_HINT), ink.dim(shareHint(sym))];
 }
 
