@@ -248,12 +248,13 @@ export function numberBox(s: Summary, ink: Ink, sym: Sym): string {
 
   if (kind === "C") {
     const delta = s.counterfactual.delta1hMinus5m;
-    // Box-safe short form of the receipt headline; "-eq" is the box-width
-    // currency marker (full "USD-equivalent (API list rates)" is prose-only).
+    // Box-safe short form of the receipt headline. The box travels alone as a
+    // screenshot, so it spells the currency out ("in API-value") instead of
+    // the -eq marker the legended report sections use.
     const fig =
       delta < 0
-        ? `saved ~${fmtDollars(Math.abs(delta))}-eq vs 5m (${windowLabelShort(s)})`
-        : `~${fmtDollars(delta)}-eq costlier than 5m (${windowLabelShort(s)})`;
+        ? `saved ~${fmtDollars(Math.abs(delta))} in API-value (${windowLabelShort(s)})`
+        : `~${fmtDollars(delta)} costlier than 5m (${windowLabelShort(s)})`;
     const figColor = delta < 0 ? ink.green : ink.yellow;
     return box(
       [

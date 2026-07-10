@@ -179,7 +179,7 @@ exports[`snapshots (ANSI-stripped) > card, all three fixtures 3`] = `
 "+--- cache-refund --------------------------------------+
 |                                                       |
 |                 YOUR 1H CACHE RECEIPT                 |
-|         saved ~$2,500.95-eq vs 5m (last 90d)          |
+|       saved ~$2,500.95 in API-value (last 90d)        |
 |                                                       |
 |             efficiency score: 98.5 / 100              |
 |              15.0B tokens - 590 sessions              |
@@ -296,7 +296,7 @@ CHECKUP
 +--- cache-refund --------------------------------------+
 |                                                       |
 |                 YOUR 1H CACHE RECEIPT                 |
-|         saved ~$2,500.95-eq vs 5m (last 90d)          |
+|       saved ~$2,500.95 in API-value (last 90d)        |
 |                                                       |
 |             efficiency score: 98.5 / 100              |
 |              15.0B tokens - 590 sessions              |

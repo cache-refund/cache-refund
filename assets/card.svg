@@ -29,7 +29,7 @@
   <text x="135" y="117" text-anchor="middle" class="t brand" font-size="14">cache-refund</text>
 
   <text x="306" y="158" text-anchor="middle" class="t head">YOUR 1H CACHE RECEIPT</text>
-  <text x="306" y="186" text-anchor="middle" class="t green">saved ≈$2,520.85 in API-value (last 90d)</text>
+  <text x="306" y="186" text-anchor="middle" class="t green">saved ~$2,520.85 in API-value (last 90d)</text>
   <text x="306" y="228" text-anchor="middle" class="t txt">efficiency score: 98.5 / 100</text>
   <text x="306" y="254" text-anchor="middle" class="t dim">14.2B tokens · 573 sessions</text>
 
