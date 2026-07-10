@@ -1,13 +1,13 @@
 # Good settings for Claude Code cache economy
 
-**This file is content, not product.** `cache-cash` the tool only ever tells you
-things it *measured from your own transcripts* and priced. This page is the other
-thing — general advice about cache-friendly settings — kept deliberately separate
-because opinions are not the product: the tool grows only along the
-*measurable-waste* axis, never the opinions axis.
+There is a lot of advice floating around about cache-friendly Claude Code
+settings. Most of it is repeated without evidence. This page ranks the common
+advice **by how much evidence actually backs it** — from things `cache-cash`
+can compute on *your own transcripts*, down to folklore you should hear and
+discount. The tool itself never gives advice it can't measure and price; this
+page covers the rest, honestly labeled.
 
-So everything here is **ranked by evidence level**, strongest first, and every
-row points at what — if anything — `cache-cash` can actually measure for you.
+Every row points at what — if anything — `cache-cash` can measure for you.
 Trust the rows near the top; treat the rows near the bottom as folklore.
 
 **Evidence ladder:**
@@ -28,9 +28,9 @@ transcripts.
 | **Cut avoidable model switches mid-session.** | `model-switch` invalidation tokens and $ — every switch dumps the cache and re-writes at full markup. | the leak table row "Model-switch invalidations" |
 | **Know your worst re-warm events.** | The single biggest re-warm and your worst day, by net leak $. | `npx @m8t-labs/cache-cash --compact` |
 
-If a piece of advice can be moved into Tier 1 — computed from transcripts,
-priced, and paired with a concrete fix — it belongs in the *tool*, not this page.
-That is the expansion rule.
+If a piece of advice can be moved into Tier 1 — computed from your transcripts,
+priced, and paired with a concrete fix — it gets built into the *tool* and
+leaves this page.
 
 ## Tier 2 — official documentation
 
@@ -57,7 +57,7 @@ measures. Reasonable defaults; your mileage varies.
   cache stays warm across your natural pauses (this is exactly what pushes gaps
   from the `cold` bucket into `warm`/`recoverable`).
 - **Batch related tasks** so context is reused before the TTL expires, rather
-  than scattering them across cold cold-starts hours apart.
+  than scattering them across cold starts hours apart.
 - **`/compact` is not free** — a compaction rewrites the cache; do it when the
   context genuinely needs trimming, not reflexively. (The tool attributes
   `compaction-rewrite` tokens so you can see how much it costs you.)
@@ -80,6 +80,6 @@ included only so you can discount it when you hear it.
 
 **The one rule.** The moment any advice here becomes something `cache-cash` can
 compute from your transcripts, price, and pair with a concrete fix, it graduates
-out of this page and into the tool. Everything that stays here stays here because
-it *can't* be measured — which is exactly why it isn't the product. See
+out of this page and into the tool. Everything that stays here stays because it
+*can't* be measured yet — read it with exactly that much trust. See
 [METHODOLOGY.md](./METHODOLOGY.md) for what the tool does measure, and how.
