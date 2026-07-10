@@ -5,4 +5,4 @@ contact_links:
     about: "Screenshot of your `card` or `--compact`? Post it in Discussions with #cachecash."
   - name: Methodology & formulas
     url: https://github.com/m8t-labs/cachecash/blob/main/METHODOLOGY.md
-    about: "Before filing a wrong-number report, `npx cache-cash --explain` shows every formula with your own numbers."
+    about: "Before filing a wrong-number report, `npx @m8t-labs/cache-cash --explain` shows every formula with your own numbers."
