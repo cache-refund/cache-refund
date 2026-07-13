@@ -1,6 +1,6 @@
 {
   "name": "cache-refund",
-  "version": "1.0.5",
+  "version": "1.1.0",
   "description": "A cache doctor for Claude Code: find the money your prompt cache is leaking.",
   "type": "module",
   "files": [

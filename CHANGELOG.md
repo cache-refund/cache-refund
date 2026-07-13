@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-07-13
+
+- **Outcome-first receipts:** API users now lead with monthly dollar savings,
+  while subscribers see the estimated reduction in usage-limit consumption.
+  Recognized subscription plans stay on the subscription path even when local
+  settings contain ambiguous provider or TTL signals.
+- **Cleaner sharing flow:** the result card appears once before a raw-key action
+  menu, aggregate Markdown reports are saved automatically, and LinkedIn sharing
+  copies the post text while revealing the generated card image and its path.
+- **Sharper share cards:** generated terminal-style images wrap usage stories,
+  remove redundant footer content, and keep API-value context concise.
+- **CLI ergonomics:** `--help` and `--version` now short-circuit cleanly, and the
+  compiled CLI module can be imported without executing the command pipeline.
+- **Project home:** repository, issue, plugin, and package metadata now point to
+  `cache-refund/cache-refund` after the GitHub organization transfer.
+
 ## [1.0.5] — 2026-07-11
 
 - **The share image is now exactly card-sized** — the square-canvas
@@ -121,5 +137,6 @@ Initial public release.
 - 100% local: token counts and timestamps only, no conversation content,
   no network, zero runtime dependencies.
 
-[Unreleased]: https://github.com/cache-refund/cache-refund/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/cache-refund/cache-refund/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/cache-refund/cache-refund/compare/b6cda556d6dc29bd435c8c8a2e6cfff0c9bedc51...v1.1.0
 [1.0.0]: https://github.com/cache-refund/cache-refund/releases/tag/v1.0.0
