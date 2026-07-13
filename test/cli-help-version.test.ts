@@ -66,7 +66,7 @@ maybe("--version and --help short-circuit before the pipeline", () => {
     for (const subcommand of ["card", "enable", "revert", "verify", "recheck"]) {
       expect(r.stdout).toContain(subcommand);
     }
-    for (const flag of ["--days", "--json", "--all-time", "--price"]) {
+    for (const flag of ["--days", "--json", "--slack", "--all-time", "--price"]) {
       expect(r.stdout).toContain(flag);
     }
     expect(r.stdout).toContain("Exit codes");

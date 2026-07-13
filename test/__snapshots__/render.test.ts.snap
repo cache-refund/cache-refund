@@ -145,6 +145,76 @@ Caching saved you $33,866.02 USD-equivalent (API list rates) vs uncached this wi
 _methodology: npx cache-refund --explain_"
 `;
 
+exports[`snapshots (ANSI-stripped) > --slack, all three fixtures 1`] = `
+"*cache-refund checkup*
+
+*Score:* 71.2 / 100 — leaking real money
+
+• Window: last 90 days (42 sessions, 3,100 turns)
+• TTL received (last 7d): 5m
+• Recoverable ratio: 36.0% (break-even 39.5%)
+
+• TTL-expiry re-warms (5–60m gaps): 9,000,000 ($420.50, 27.0% of write spend)
+• Session cold starts (>60m or session start) (info): 4,000,000 ($25.00, 1.6% of write spend)
+• Model-switch invalidations: 500,000 ($3.13, 0.2% of write spend)
+• Compaction rewrites: 0 ($0.00, 0.0% of write spend)
+• Subagent 5m overhead (info): 0 ($0.00, 0.0% of write spend)
+
+*Biggest single miss:* 441K-token re-warm — $7.62 in one turn.
+*Worst day:* 2026-06-28 — $62.40 leaked.
+
+*Verdict:* switching to the 1h TTL saves ~$80.00/30d. Run \`npx cache-refund enable\` to apply.
+
+_methodology: npx cache-refund --explain_"
+`;
+
+exports[`snapshots (ANSI-stripped) > --slack, all three fixtures 2`] = `
+"*cache-refund checkup*
+
+*Score:* 96.3 / 100 — certified optimal
+
+• Window: last 90 days (80 sessions, 5,200 turns)
+• TTL received (last 7d): 5m
+• Recoverable ratio: 5.0% (break-even 39.5%)
+
+• TTL-expiry re-warms (5–60m gaps): 2,000,000 ($18.20, 9.0% of write spend)
+• Session cold starts (>60m or session start) (info): 8,000,000 ($30.00, 15.0% of write spend)
+• Model-switch invalidations: 0 ($0.00, 0.0% of write spend)
+• Compaction rewrites: 0 ($0.00, 0.0% of write spend)
+• Subagent 5m overhead (info): 0 ($0.00, 0.0% of write spend)
+
+*Biggest single miss:* 88K-token re-warm — $0.61 in one turn.
+*Worst day:* 2026-06-15 — $4.10 leaked.
+
+*Verdict:* certified optimal ✓ — you're on the cheaper TTL for your pattern.
+
+_methodology: npx cache-refund --explain_"
+`;
+
+exports[`snapshots (ANSI-stripped) > --slack, all three fixtures 3`] = `
+"*cache-refund checkup*
+
+*Score:* 98.5 / 100 — excellent
+
+• Window: last 90 days (590 sessions, 43,774 turns)
+• TTL received (last 7d): 1h
+• Recoverable ratio: 13.7% (break-even 39.5%)
+
+• TTL-expiry re-warms (5–60m gaps): 102,770,623 ($618.60-eq, 7.3% of write spend)
+• Session cold starts (>60m or session start) (info): 351,673,734 ($2,447.90-eq, 29.0% of write spend)
+• Model-switch invalidations: 70,273,091 ($513.86-eq, 6.1% of write spend)
+• Compaction rewrites: 189,887 ($1.93-eq, 0.0% of write spend)
+• Subagent 5m overhead (info): 0 ($0.00-eq, 0.0% of write spend)
+
+*Biggest single miss:* 612K-token re-warm — $7.03-eq in one turn.
+*Worst day:* 2026-06-10 — $49.21-eq leaked.
+
+*Verdict:* 1h already yours (subscription) ✓ — your 1h cache saved you ~$2,500.95 USD-equivalent (API list rates) vs a 5m world in the last 90 days.
+Caching saved you $33,866.02 USD-equivalent (API list rates) vs uncached this window.
+
+_methodology: npx cache-refund --explain_"
+`;
+
 exports[`snapshots (ANSI-stripped) > card, all three fixtures 1`] = `
 "+--- cache-refund --------------------------------------+
 |                                                       |

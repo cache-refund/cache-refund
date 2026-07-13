@@ -1,6 +1,6 @@
 import type { Readable } from "node:stream";
 
-export type FinalAction = "copy-image" | "copy-report" | "show-paths" | "x" | "bluesky" | "linkedin" | "quit";
+export type FinalAction = "copy-image" | "copy-report" | "copy-slack" | "x" | "bluesky" | "linkedin" | "quit";
 
 interface RawReadable extends Readable {
   isTTY?: boolean;
@@ -12,7 +12,7 @@ function actionFor(chunk: Buffer): FinalAction | null {
   const key = chunk.toString("utf8");
   if (key === "\r" || key === "\n") return "copy-image";
   if (key === "r" || key === "R") return "copy-report";
-  if (key === "s" || key === "S") return "show-paths";
+  if (key === "s" || key === "S") return "copy-slack";
   if (key === "x" || key === "X") return "x";
   if (key === "b" || key === "B") return "bluesky";
   if (key === "l" || key === "L") return "linkedin";

@@ -24,6 +24,7 @@ import {
   renderExplain,
   renderFull,
   renderMarkdown,
+  renderSlack,
   shareTemplate,
   wrappedLines,
 } from "../src/render.js";
@@ -788,6 +789,18 @@ describe("snapshots (ANSI-stripped)", () => {
     expect(renderMarkdown(fixtureEndingAEnable)).toMatchSnapshot();
     expect(renderMarkdown(fixtureEndingBOptimal)).toMatchSnapshot();
     expect(renderMarkdown(fixtureEndingCReceipt)).toMatchSnapshot();
+  });
+  it("--slack, all three fixtures", () => {
+    const a = renderSlack(fixtureEndingAEnable);
+    expect(a).toMatchSnapshot();
+    expect(a).not.toContain("**");
+    expect(a).not.toContain("|");
+    expect(a).not.toMatch(/\x1b\[/);
+    expect(a).toContain("Run `npx cache-refund enable` to apply.");
+    expect(a).toContain("_methodology: npx cache-refund --explain_");
+
+    expect(renderSlack(fixtureEndingBOptimal)).toMatchSnapshot();
+    expect(renderSlack(fixtureEndingCReceipt)).toMatchSnapshot();
   });
   it("--explain, subscriber fixture", () => {
     expect(renderExplain(fixtureEndingCReceipt)).toMatchSnapshot();

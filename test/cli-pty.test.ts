@@ -245,6 +245,9 @@ maybe("interactive checkup on a real pty (outcome card + final menu)", () => {
     expect(stripped.slice(boxIdx).includes("CHECKUP")).toBe(false);
 
     expect((stripped.match(/Ready to share/g) ?? []).length).toBe(1);
+    expect(stripped).toContain("card:");
+    expect(stripped).toContain("report:");
+    expect(stripped).toContain("[s]     Copy Slack report");
   });
 
   it("the final menu appears on every interactive checkup, not once per machine", () => {
