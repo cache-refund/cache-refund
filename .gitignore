@@ -1,3 +1,9 @@
 dist/
 node_modules/
 __pycache__/
+
+# macOS
+.DS_Store
+
+# local tooling
+.shakedown/
