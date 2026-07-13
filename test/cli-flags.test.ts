@@ -101,6 +101,22 @@ function runCli(home: string, args: string[]): { status: number | null; stdout: 
 
 const maybe = existsSync(CLI) ? describe : describe.skip;
 
+maybe("--slack: Slack mrkdwn report", () => {
+  it("prints the result as Slack-native text without Markdown tables", () => {
+    const home = freshHome();
+    seedTranscript(home);
+
+    const r = runCli(home, ["--slack", "--branch-override", "api-5m"]);
+
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain("*cache-refund checkup*");
+    expect(r.stdout).toContain("*Verdict:*");
+    expect(r.stdout).toContain("_methodology: npx cache-refund --explain_");
+    expect(r.stdout).not.toContain("**");
+    expect(r.stdout).not.toContain("|---");
+  });
+});
+
 maybe("configured 1h delivery regression", () => {
   it("does not offer or re-apply 1h when the flag is already set but transcripts received 5m", () => {
     const home = freshHome();

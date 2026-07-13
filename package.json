@@ -9,6 +9,7 @@
     "assets/card-subscription.svg",
     "README.md",
     "METHODOLOGY.md",
+    "AUTHORS.md",
     "LICENSE"
   ],
   "engines": {
@@ -41,7 +42,10 @@
   "bugs": {
     "url": "https://github.com/cache-refund/cache-refund/issues"
   },
-  "author": "Ilan Bar-Magen",
+  "author": "m8t labs",
+  "contributors": [
+    "Ilan Bar-Magen"
+  ],
   "devDependencies": {
     "@types/node": "^20.0.0",
     "typescript": "^5.4.0",

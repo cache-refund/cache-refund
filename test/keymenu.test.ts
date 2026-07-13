@@ -17,7 +17,7 @@ describe("readFinalActionKey", () => {
   it.each([
     ["\r", "copy-image"],
     ["r", "copy-report"],
-    ["s", "show-paths"],
+    ["s", "copy-slack"],
     ["x", "x"],
     ["b", "bluesky"],
     ["l", "linkedin"],

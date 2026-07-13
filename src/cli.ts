@@ -10,7 +10,7 @@
  *   npx cache-refund recheck         baseline comparison
  *
  *   --days N (90) · --project <path> · --price <model=$/MTok,...> · --yes ·
- *   --no-color · --all-time · --json · --md · --compact · --explain ·
+ *   --no-color · --all-time · --json · --md · --slack · --compact · --explain ·
  *   --version · --help ·
  *   --projects (v1.0.1: opt back into project names in human output;
  *               default is share-safe — no project names in screenshots)
@@ -70,6 +70,7 @@ import {
   renderExplain,
   renderFull,
   renderMarkdown,
+  renderSlack,
   shareTemplate,
   trustLine,
 } from "./render.js";
@@ -90,6 +91,7 @@ interface Args {
   noColor: boolean;
   json: boolean;
   md: boolean;
+  slack: boolean;
   compact: boolean;
   explain: boolean;
   /**
@@ -163,6 +165,7 @@ Flags
   --yes, -y                  skip the confirmation prompt
   --json                     machine-readable summary; never prompts
   --md                       markdown report
+  --slack                    Slack-formatted report
   --compact                  the short version
   --explain                  the formulas, with your numbers filled in
   --projects                 show project names (hidden by default)
@@ -183,6 +186,7 @@ function parseArgs(argv: string[]): Args {
     noColor: false,
     json: false,
     md: false,
+    slack: false,
     compact: false,
     explain: false,
     projects: false,
@@ -200,6 +204,9 @@ function parseArgs(argv: string[]): Args {
         break;
       case "--md":
         args.md = true;
+        break;
+      case "--slack":
+        args.slack = true;
         break;
       case "--compact":
         args.compact = true;
@@ -329,10 +336,11 @@ async function finalActionMenu(
   }
   const imagePath = image.pngPath ?? image.svgPath;
   process.stdout.write(
-    "\nReady to share — press Enter to copy the card image\n\n" +
+    `\ncard: ${imagePath}\nreport: ${report.path}\n` +
+      "\nReady to share — press Enter to copy the card image\n\n" +
       "  [Enter] Copy card image\n" +
       "  [r]     Copy detailed report\n" +
-      "  [s]     Show card/report file locations\n" +
+      "  [s]     Copy Slack report\n" +
       "  [x]     Post to X\n" +
       "  [b]     Post to Bluesky\n" +
       "  [l]     Post to LinkedIn\n" +
@@ -341,13 +349,14 @@ async function finalActionMenu(
   const action = await readFinalActionKey(process.stdin);
   process.stdout.write("\n");
   if (action === "quit") return;
-  if (action === "show-paths") {
-    process.stdout.write(`card: ${imagePath}\nreport: ${report.path}\n`);
-    return;
-  }
   if (action === "copy-report") {
     const copied = await copyToClipboard(report.markdown);
     process.stdout.write(copied ? "detailed report copied to clipboard\n" : `couldn't copy report — saved at ${report.path}\n`);
+    return;
+  }
+  if (action === "copy-slack") {
+    const copied = await copyToClipboard(renderSlack(summary));
+    process.stdout.write(copied ? "Slack report copied to clipboard\n" : "couldn't copy Slack report\n");
     return;
   }
   const text = shareTemplate(summary, "checkup");
@@ -579,6 +588,11 @@ async function renderCheckup(
 ): Promise<number> {
   if (args.md) {
     process.stdout.write(renderMarkdown(summary) + "\n");
+    writeDetailedReport(summary, { home: homedir(), markdown: reportMarkdown(summary) });
+    return 0;
+  }
+  if (args.slack) {
+    process.stdout.write(renderSlack(summary) + "\n");
     writeDetailedReport(summary, { home: homedir(), markdown: reportMarkdown(summary) });
     return 0;
   }

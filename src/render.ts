@@ -1168,3 +1168,46 @@ export function renderAmbiguousNotice(): string {
 }
 
 export { wrapLine };
+export function renderSlack(s: Summary): string {
+  const kind = decideEnding(s);
+  const cf = s.counterfactual;
+  const lines: string[] = [];
+  lines.push(`*${BRAND} checkup*`);
+  lines.push("");
+  lines.push(`*Score:* ${s.efficiencyScore.toFixed(1)} / 100 — ${scoreLabel(s.efficiencyScore, makeSym(false), kind)}`);
+  lines.push("");
+  lines.push(`• Window: ${s.window.mode === "all-time" ? "all-time" : `last ${s.window.days} days`} (${s.scope.sessions.toLocaleString("en-US")} sessions, ${s.scope.turns.toLocaleString("en-US")} turns)`);
+  lines.push(`• TTL received (last ${s.ttlRealityCheck.windowDays}d): ${s.ttlRealityCheck.received}`);
+  lines.push(`• Recoverable ratio: ${fmtPct(s.recoverableRatio)} (break-even ${fmtPct(s.threshold)})`);
+  lines.push("");
+  const eq = s.currency === "USD" ? "" : "-eq";
+  for (const l of s.leaks) {
+    lines.push(`• ${l.label}${l.informational ? " (info)" : ""}: ${fmtTokens(l.tokens)} (${fmtDollars(l.dollars)}${eq}, ${fmtPct(l.shareOfWriteSpend)} of write spend)`);
+  }
+  lines.push("");
+  if (s.biggestMiss) {
+    lines.push(`*Biggest single miss:* ${fmtTokensCompact(s.biggestMiss.tokens)}-token re-warm — ${fmtDollarsEq(s, s.biggestMiss.dollars)} in one turn.`);
+  }
+  if (s.worstDay) {
+    lines.push(`*Worst day:* ${s.worstDay.day} — ${fmtDollarsEq(s, s.worstDay.dollars)} leaked.`);
+  }
+  lines.push("");
+  if (kind === "A-enable") {
+    lines.push(`*Verdict:* switching to the 1h TTL saves ~${fmtDollars(Math.abs(cf.delta30d))}/30d. Run \`npx cache-refund enable\` to apply.`);
+  } else if (kind === "A-revert") {
+    lines.push(`*Verdict:* 5m would cost ~${fmtDollars(Math.abs(cf.delta30d))}/30d less for this pattern. Run \`npx cache-refund revert\` to apply.`);
+  } else if (kind === "B") {
+    lines.push(`*Verdict:* certified optimal ✓ — you're on the cheaper TTL for your pattern.`);
+  } else if (kind === "D-delivery") {
+    lines.push("*Verdict:* 1h is already configured, but recent transcripts received 5m. Start a fresh session and run `npx cache-refund verify`; do not enable it again.");
+  } else {
+    const uni = makeSym(false);
+    lines.push(
+      `*Verdict:* 1h already yours (subscription) ✓ — ${receiptHeadline(s, uni).replace(/^Your/, "your").replace(/^A /, "a ")}`
+    );
+    lines.push(cachingSavedLine(s, uni));
+  }
+  lines.push("");
+  lines.push(`_${METHODOLOGY_HINT}_`);
+  return lines.join("\n");
+}

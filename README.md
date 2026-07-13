@@ -12,13 +12,28 @@
 
 ## How to run
 
+### From a terminal
+
 ```bash
 npx cache-refund
 ```
 
 No install, no account, no config. Node 18+. (The installed command, once you
-do install it, is plain `cache-refund`.) Prefer it conversational? It also
-ships as a Claude Code plugin — see [Use it inside Claude Code](#use-it-inside-claude-code).
+do install it, is plain `cache-refund`.)
+
+### Inside Claude Code
+
+```text
+/plugin marketplace add cache-refund/cache-refund
+```
+
+Then ask Claude Code to “run cache-refund” or “am I leaking money on cache?”
+The plugin runs the analyzer and explains the result conversationally. It never
+edits `settings.json` on your behalf; settings changes still go through the
+CLI's own confirmation prompt.
+
+If your npm configuration delays newly published packages, use the Claude Code
+plugin instead.
 
 > **100% local.** Reads token counts and timestamps only. No conversation content. No network.
 
@@ -118,21 +133,6 @@ takes from that story: **measure the TTL you received, don't trust the one you s
 That is why every checkup leads with the reality-check line, and why the
 regression *watchdog* (below) is the roadmap's flagship.
 
-## Use it inside Claude Code
-
-`cache-refund` also ships as a Claude Code plugin, so you can run the checkup
-conversationally instead of from a terminal:
-
-```
-/plugin marketplace add cache-refund/cache-refund
-```
-
-Then just ask — "am I leaking money on cache?" or "run cache-refund" — and the
-agent runs the analyzer, narrates the number, the gap breakdown, and the
-verdict in plain language. It never edits `settings.json` on your behalf: it
-only ever surfaces the `enable`/`revert` command and asks you to run it — the
-settings changes still go through the tool's own confirmation prompt, same as the CLI.
-
 ## Share your card
 
 ```bash
@@ -146,7 +146,8 @@ Post it with #cacherefund, or drop it in [the pinned Discussion](https://github.
 ```bash
 npx cache-refund share      # deal your card + the share prompt, any time
 npx cache-refund card       # terminal receipt: outcome box, usage story, and share hint
-npx cache-refund --md       # paste-ready markdown block for Slack / Teams
+npx cache-refund --md       # standard Markdown report for docs, issues, and Teams
+npx cache-refund --slack    # Slack-native mrkdwn report, ready to paste
 npx cache-refund --compact  # short outcome summary for logs and narrow terminals
 npx cache-refund --json     # full machine-readable summary (stable schema, never prompts)
 npx cache-refund --explain  # every formula, your numbers substituted (METHODOLOGY, one flag away)
@@ -202,7 +203,8 @@ honest, not missing data.
 No. The CLI itself makes zero network requests, sharing included. At the end of
 an interactive run it generates the terminal-style card locally and shows one
 single-key menu: Enter copies the image, `r` copies the detailed report, platform
-keys open your own browser, and `q`/Escape exits. X and Bluesky receive prefilled
+keys open your own browser, `s` copies the Slack-formatted report, and `q`/Escape
+exits. The saved card and report paths are shown above the menu. X and Bluesky receive prefilled
 text through their compose URLs. LinkedIn opens its composer, copies the prepared
 post text to your clipboard, and reveals the card image with its exact path for
 attachment. Nothing is transmitted by `cache-refund`, ever. `--no-share` (or
@@ -246,6 +248,11 @@ retrieval date cited in `src/pricing.ts`.)
 ## Contributing & license
 
 Wrong-number reports get a priority lane — see
-[CONTRIBUTING.md](./CONTRIBUTING.md). MIT licensed, © 2026 Ilan Bar-Magen.
+[CONTRIBUTING.md](./CONTRIBUTING.md). MIT licensed.
+
+An m8t labs project. See [AUTHORS.md](./AUTHORS.md) for core authorship and
+contributor ownership details.
+
+© 2026 The m8t labs Authors.
 
 Methodology in full: [METHODOLOGY.md](./METHODOLOGY.md) · or run `npx cache-refund --explain`.
