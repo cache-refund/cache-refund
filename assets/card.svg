@@ -1,24 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="720" height="534" viewBox="0 0 720 534">
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="519" viewBox="0 0 720 519">
   <defs><style>
     .t { font-family: "SF Mono", Menlo, Monaco, "DejaVu Sans Mono", monospace; white-space: pre; }
     .dim { fill: #8b8fa3; } .txt { fill: #e6e6ef; }
     .green { fill: #3fd68f; } .orange { fill: #e8a15d; } .brand { fill: #d75fd7; font-weight: 700; }
   </style></defs>
-  <rect width="720" height="534" fill="#0f1016"/>
-  <rect x="16" y="16" width="688" height="502" rx="16" fill="#15161c" stroke="#2a2c37"/>
+  <rect width="720" height="519" fill="#0f1016"/>
+  <rect x="16" y="16" width="688" height="487" rx="16" fill="#15161c" stroke="#2a2c37"/>
   <path d="M16 32 a16 16 0 0 1 16 -16 h656 a16 16 0 0 1 16 16 v26 h-688 z" fill="#1d1f28"/>
   <circle cx="44" cy="37" r="6.5" fill="#ff5f57"/><circle cx="66" cy="37" r="6.5" fill="#febc2e"/><circle cx="88" cy="37" r="6.5" fill="#28c840"/>
   <text x="360" y="42" text-anchor="middle" class="t dim" font-size="13">npx cache-refund</text>
   <text x="40" y="96" class="t dim" font-size="15">$ <tspan class="t txt">npx cache-refund card</tspan></text>
-  <rect x="80" y="118" width="560" height="210" rx="10" fill="none" stroke="#d75fd7" stroke-width="1.6"/>
+  <rect x="80" y="118" width="560" height="262" rx="10" fill="none" stroke="#d75fd7" stroke-width="1.6"/>
   <rect x="285" y="109" width="150" height="18" fill="#15161c"/>
   <text x="360" y="123" text-anchor="middle" class="t brand" font-size="14">cache-refund</text>
-  <text x="360" y="176" text-anchor="middle" class="t txt" font-size="15">YOUR 1H CACHE RECEIPT</text>
-  <text x="360" y="202" text-anchor="middle" class="t green" font-size="15" font-weight="700">saved ~$2,622.77 in API-value (85d span)</text>
-  <text x="360" y="254" text-anchor="middle" class="t dim" font-size="15">efficiency score: 98.5 / 100</text>
-  <text x="360" y="280" text-anchor="middle" class="t dim" font-size="15">13.7B tokens · 566 sessions</text>
-  <text x="360" y="306" text-anchor="middle" class="t dim" font-size="15">absorbed $65,447 of API-value</text>
-  <text x="40" y="366" class="t"><tspan class="orange" font-size="15">›</tspan><tspan class="txt" font-size="15"> Model switches invalidated 60.8M tokens of cache </tspan><tspan class="orange" font-size="15">($453.97-eq)</tspan><tspan class="txt" font-size="15">.</tspan></text><text x="40" y="392" class="t dim" font-size="13">Same work on a 5m cache: ~10% more of your usage limit. Uncached: ~5.2x.</text>
-  <text x="40" y="432" class="t dim" font-size="13">share: npx cache-refund card  ·  #cacherefund</text>
-  <text x="40" y="473.5" class="t dim" font-size="12">100% local · token counts + timestamps · nothing leaves this machine</text><text x="40" y="492.5" class="t dim" font-size="12">$ figures are API-value (list rates) — subscription usage is metered in it, not billed</text>
+  <text x="360" y="176" text-anchor="middle" class="t txt" font-size="15">YOUR MAX 20X CACHE RECEIPT</text>
+  <text x="360" y="202" text-anchor="middle" class="t green" font-size="15" font-weight="700">1H CACHE USES 8% LESS OF YOUR LIMIT</text>
+  <text x="360" y="254" text-anchor="middle" class="t dim" font-size="15">Actual 1h       ██████████████████░░  92%</text>
+  <text x="360" y="280" text-anchor="middle" class="t dim" font-size="15">Same work on 5m ████████████████████ 100%</text>
+  <text x="360" y="332" text-anchor="middle" class="t dim" font-size="15">$12,089.62/mo API-value absorbed</text>
+  <text x="360" y="358" text-anchor="middle" class="t dim" font-size="15">~60.4x your monthly plan, absorbed for free</text>
+  <text x="40" y="418" class="t"><tspan class="orange" font-size="15">›</tspan><tspan class="txt" font-size="15"> Usage pattern: High-volume, long-running sessions with frequent returns</tspan></text>
+  <text x="40" y="444" class="t"><tspan class="txt" font-size="15">  after 5–60 minutes — exactly where the 1h cache pays off.</tspan></text>
+  <text x="40" y="477.5" class="t dim" font-size="12">$ figures are API-value (list rates), not a bill</text>
 </svg>

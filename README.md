@@ -145,9 +145,9 @@ Post it with #cacherefund, or drop it in [the pinned Discussion](https://github.
 
 ```bash
 npx cache-refund share      # deal your card + the share prompt, any time
-npx cache-refund card       # the canonical screenshot: section box + top Wrapped line
+npx cache-refund card       # terminal receipt: outcome box, usage story, and share hint
 npx cache-refund --md       # paste-ready markdown block for Slack / Teams
-npx cache-refund --compact  # ~7 lines: score, R/C verdict, biggest miss, worst day
+npx cache-refund --compact  # short outcome summary for logs and narrow terminals
 npx cache-refund --json     # full machine-readable summary (stable schema, never prompts)
 npx cache-refund --explain  # every formula, your numbers substituted (METHODOLOGY, one flag away)
 ```
@@ -200,9 +200,12 @@ honest, not missing data.
 No. The CLI itself makes zero network requests, sharing included. At the end of
 an interactive run it generates the terminal-style card locally and shows one
 single-key menu: Enter copies the image, `r` copies the detailed report, platform
-keys open your own browser, and `q`/Escape exits. Nothing is transmitted by
-`cache-refund`, ever. `--no-share` (or `CACHE_REFUND_NO_SHARE=1`) suppresses the
-image/menu while the aggregate report is still saved.
+keys open your own browser, and `q`/Escape exits. X and Bluesky receive prefilled
+text through their compose URLs. LinkedIn opens its composer, copies the prepared
+post text to your clipboard, and reveals the card image with its exact path for
+attachment. Nothing is transmitted by `cache-refund`, ever. `--no-share` (or
+`CACHE_REFUND_NO_SHARE=1`) suppresses the image/menu while the aggregate report
+is still saved.
 
 **I think a number is wrong.**
 That is the highest-priority kind of bug report. Open a
@@ -215,8 +218,7 @@ formula.
 
 - **v1.1 — the TTL regression watchdog.** A `watch` mode that alarms the moment
   your received TTL flips (the March-2026 incident, turned into a live tripwire).
-  Plus `card --html` (a self-contained dark-mode card for LinkedIn/decks) and
-  sleep-window learning to split cold gaps into "asleep" vs "abandoned".
+  Plus sleep-window learning to split cold gaps into "asleep" vs "abandoned".
   `watch` is teased in the checkup footer as *coming* — it is not a shipped
   command yet.
 - **v1.5 — `team`** aggregate mode (v1 already ships `--json` + a documented `jq`
