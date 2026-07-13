@@ -153,7 +153,7 @@ maybe("--plan <usd>: subscription-only receipt multiplier", () => {
     seedTranscript(home);
     const r = runCli(home, ["card", "--branch-override", "subscription", "--plan", "10"]);
     expect(r.status).toBe(0);
-    expect(r.stdout).toMatch(/absorbed \$[\d,]+ of API-value/);
+    expect(r.stdout).toMatch(/\$[\d,.]+\/mo API-value absorbed/);
     expect(r.stdout).toMatch(/~[\d.]+x your monthly plan, absorbed for free/);
   });
 

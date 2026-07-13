@@ -41,12 +41,13 @@
  */
 
 import type { LeakRow, Summary } from "./types.js";
+import { usagePatternStory } from "./story.js";
 import {
   box,
-  boxWidth,
   fmtBar,
   fmtBarAscii,
   fmtDollars,
+  fmtDollarsCompact,
   fmtPct,
   fmtTokens,
   fmtTokensCompact,
@@ -83,6 +84,7 @@ export interface RenderOptions {
    * branch.
    */
   planPrice?: number;
+  planName?: string;
 }
 
 const BRAND = "cache-refund";
@@ -277,56 +279,70 @@ function scaleLine(s: Summary, sym: Sym): string {
  * total, BOX_INNER visible chars) — so a pathological dollar figure shortens
  * its wording rather than ever widening the box.
  */
-function scaleRows(s: Summary, ink: Ink, sym: Sym, planPrice?: number): BoxLine[] {
-  const rows: BoxLine[] = [{ text: ink.dim(scaleLine(s, sym)) }];
-  const absorbed = absorbedDollars(s);
-  if (absorbed !== null) {
-    const long = fmtAbsorbed(absorbed, false);
-    const text = long.length <= boxWidth - 2 ? long : fmtAbsorbed(absorbed, true);
-    rows.push({ text: ink.dim(text) });
-  }
-  const plan = planMultiplierLine(s, planPrice);
-  if (plan !== null) rows.push({ text: ink.dim(plan) });
-  return rows;
-}
-
-export function numberBox(s: Summary, ink: Ink, sym: Sym, planPrice?: number): string {
+export function numberBox(s: Summary, ink: Ink, sym: Sym, planPrice?: number, planName?: string): string {
   const kind = decideEnding(s);
-  const score = s.efficiencyScore.toFixed(1);
+  const monthly = (value: number) => (s.counterfactual.spanDays > 0 ? value * (30 / s.counterfactual.spanDays) : value);
+  const bar = sym.ascii ? fmtBarAscii : fmtBar;
+  const boxDollars = (value: number) => {
+    const full = fmtDollars(value);
+    return full.length <= 12 ? full : fmtDollarsCompact(value);
+  };
 
   if (kind === "C") {
-    const delta = s.counterfactual.delta1hMinus5m;
-    // Box-safe short form of the receipt headline. The box travels alone as a
-    // screenshot, so it spells the currency out ("in API-value") instead of
-    // the -eq marker the legended report sections use.
-    const fig =
-      delta < 0
-        ? `saved ~${fmtDollars(Math.abs(delta))} in API-value (${windowLabelShort(s)})`
-        : `~${fmtDollars(delta)} costlier than 5m (${windowLabelShort(s)})`;
-    const figColor = delta < 0 ? ink.green : ink.yellow;
+    const oneHourAhead = s.counterfactual.cost5m > s.counterfactual.actualCost;
+    const denominator = Math.max(oneHourAhead ? s.counterfactual.cost5m : s.counterfactual.actualCost, 1);
+    const fivePct = Math.round((s.counterfactual.cost5m / denominator) * 100);
+    const actualPct = Math.round((s.counterfactual.actualCost / denominator) * 100);
+    const differencePct = Math.round(Math.abs(s.counterfactual.actualCost - s.counterfactual.cost5m) / denominator * 100);
+    const rows: BoxLine[] = [
+      { text: "" },
+      ...(planName ? [{ text: ink.dim(`YOUR ${planName.toUpperCase()} CACHE RECEIPT`) }] : []),
+      { text: (oneHourAhead ? ink.green : ink.yellow)(ink.bold(oneHourAhead ? `1H CACHE USES ${differencePct}% LESS OF YOUR LIMIT` : `5M CACHE USES ${differencePct}% LESS OF YOUR LIMIT`)) },
+      { text: "" },
+      { text: `Actual 1h       ${ink.green(bar(actualPct / 100, 20))} ${`${actualPct}%`.padStart(4)}` },
+      { text: `Same work on 5m ${ink.yellow(bar(fivePct / 100, 20))} ${`${fivePct}%`.padStart(4)}` },
+      { text: "" },
+      { text: ink.dim(`${boxDollars(monthly(absorbedDollars(s) ?? 0))}/mo API-value absorbed`) },
+    ];
+    const plan = planMultiplierLine(s, planPrice);
+    if (plan !== null) rows.push({ text: ink.dim(plan) });
     return box(
-      [
-        { text: "" },
-        { text: "YOUR 1H CACHE RECEIPT" },
-        { text: figColor(ink.bold(fig)) },
-        { text: "" },
-        { text: ink.dim(`efficiency score: ${score} / 100`) },
-        ...scaleRows(s, ink, sym, planPrice),
-      ],
+      rows,
       sym.ascii,
       BOX_FRAME(ink),
     );
   }
 
-  const scoreColor = s.efficiencyScore >= 90 ? ink.green : s.efficiencyScore >= 70 ? ink.yellow : ink.red;
+  const currentLabel = s.branch === "api-1h" ? "Current 1h" : "Current 5m";
+  const otherLabel = s.branch === "api-1h" ? "Same work 5m" : "Same work 1h";
+  const currentCost = s.branch === "api-1h" ? s.counterfactual.cost1h : s.counterfactual.cost5m;
+  const otherCost = s.branch === "api-1h" ? s.counterfactual.cost5m : s.counterfactual.cost1h;
+  const currentMonthly = monthly(currentCost);
+  const otherMonthly = monthly(otherCost);
+  const maxMonthly = Math.max(currentMonthly, otherMonthly, 1);
+  const oneHourAhead = s.counterfactual.cost1h < s.counterfactual.cost5m;
+  const expensiveCost = Math.max(s.counterfactual.cost1h, s.counterfactual.cost5m, 1);
+  const cheaperPct = Math.round(Math.abs(s.counterfactual.cost1h - s.counterfactual.cost5m) / expensiveCost * 100);
+  const percentageLine = oneHourAhead
+    ? `1H CACHE COSTS ${cheaperPct}% LESS THAN 5M`
+    : `5M CACHE COSTS ${cheaperPct}% LESS THAN 1H`;
+  const headline = oneHourAhead
+    ? `SAVE ~${fmtDollars(Math.abs(s.counterfactual.delta30d))} / MONTH`
+    : kind === "A-revert"
+      ? `5M SAVES ~${fmtDollars(Math.abs(s.counterfactual.delta30d))} / MONTH`
+      : "5M IS ALREADY OPTIMAL";
+  const headlineColor = kind === "B" ? ink.green : ink.yellow;
   return box(
     [
       { text: "" },
-      { text: "CACHE EFFICIENCY SCORE" },
-      { text: scoreColor(ink.bold(`${score} / 100`)) },
+      { text: headlineColor(ink.bold(headline)) },
+      { text: headlineColor(ink.bold(percentageLine)) },
       { text: "" },
-      { text: ink.dim(scoreLabel(s.efficiencyScore, sym, kind)) },
-      ...scaleRows(s, ink, sym, planPrice),
+      { text: `${currentLabel.padEnd(12)} ${ink.yellow(bar(currentMonthly / maxMonthly, 20))} ${boxDollars(currentMonthly).padStart(9)}` },
+      { text: `${otherLabel.padEnd(12)} ${ink.green(bar(otherMonthly / maxMonthly, 20))} ${boxDollars(otherMonthly).padStart(9)}` },
+      { text: "" },
+      { text: ink.dim(`~${boxDollars(Math.abs(s.counterfactual.delta1hMinus5m))} LESS OVER THE ANALYZED ${Math.round(s.counterfactual.spanDays)} DAYS`) },
+      { text: ink.dim(scaleLine(s, sym)) },
     ],
     sym.ascii,
     BOX_FRAME(ink),
@@ -513,11 +529,18 @@ export function renderEnding(s: Summary, kind: EndingKind, ink: Ink, sym: Sym, p
 
 function endingEnable(s: Summary, ink: Ink, sym: Sym): EndingRender {
   const cf = s.counterfactual;
+  const cheaperPct = Math.round((1 - cf.cost1h / Math.max(cf.cost5m, 1)) * 100);
   const lines = [
-    ink.bold("THE FIX"),
-    "",
-    ...wrapTerm(
-      `You're on the 5-minute cache TTL. Your recoverable ratio (${fmtPct(s.recoverableRatio)}) is above the ${fmtPct(s.threshold)} break-even ${sym.dash} switching to the 1-hour TTL saves ~${fmtDollars(Math.abs(cf.delta30d))}/30d (~${fmtDollars(Math.abs(cf.delta1hMinus5m))} over the ${Math.round(cf.spanDays)}-day window analyzed).`,
+    box(
+      [
+        { text: "" },
+        { text: ink.yellow(ink.bold(`SAVE ~${fmtDollars(Math.abs(cf.delta30d))} / MONTH`)) },
+        { text: ink.yellow(ink.bold(`1H CACHE COSTS ${cheaperPct}% LESS THAN 5M`)) },
+        { text: ink.dim(`~${fmtDollars(Math.abs(cf.delta1hMinus5m))} LESS OVER THE ANALYZED ${Math.round(cf.spanDays)} DAYS`) },
+        { text: "" },
+      ],
+      sym.ascii,
+      BOX_FRAME(ink),
     ),
     "",
     ink.dim("  diff:"),
@@ -705,13 +728,6 @@ function windowLabel(s: Summary): string {
     : `over the ${Math.round(s.counterfactual.spanDays)}-day span analyzed`;
 }
 
-/** Short window label for the 57-col receipt score box. */
-function windowLabelShort(s: Summary): string {
-  return s.window.mode === "days" && s.window.days != null
-    ? `last ${s.window.days}d`
-    : `${Math.round(s.counterfactual.spanDays)}d span`;
-}
-
 /**
  * The subscriber receipt's LEAD line: the 1h-vs-5m counterfactual from
  * delta1hMinus5m (negative = 1h saved money), labeled with its window. The
@@ -742,30 +758,30 @@ function subscriberParadoxLine(sym: Sym): string {
 }
 
 /**
- * The limit-stretch multiples (subscription branch only): how much MORE of
- * the user's usage limit the same work would have metered under a 5m cache,
- * and under no cache at all. Pure arithmetic on billed tokens — it needs no
+ * The limit-stretch figures (subscription branch only): how much LESS of the
+ * user's usage limit the 1h cache meters than the same work under a 5m cache,
+ * plus the uncached multiple. Pure arithmetic on billed tokens — it needs no
  * knowledge of the (undisclosed) limit formula, only the one assumption the
  * receipt already states: usage is metered cost-weighted at API-value rates.
  * Under that assumption, X× the cost-weighted usage is X× the limit consumed,
  * whatever the limit is. Returns null off-branch, or when the 1h cache isn't
  * actually ahead (never claim a stretch that isn't there).
  */
-export function limitMultiples(s: Summary): { pct5m: number; xUncached: number } | null {
+export function limitMultiples(s: Summary): { pctSavedVs5m: number; xUncached: number } | null {
   if (s.branch !== "subscription") return null;
   const actual = s.counterfactual.actualCost;
   if (!(actual > 0)) return null;
-  const m5 = s.counterfactual.cost5m / actual;
+  const cost5m = s.counterfactual.cost5m;
   const mU = uncachedCost(s) / actual;
-  if (m5 <= 1 || mU <= 1) return null;
-  return { pct5m: Math.round((m5 - 1) * 100), xUncached: mU };
+  if (cost5m <= actual || mU <= 1) return null;
+  return { pctSavedVs5m: Math.round((1 - actual / cost5m) * 100), xUncached: mU };
 }
 
 /** ASCII-safe prose line for limitMultiples; null when the multiples are. */
 export function limitStretchLine(s: Summary): string | null {
   const m = limitMultiples(s);
   if (m === null) return null;
-  return `Same work on a 5m cache: ~${m.pct5m}% more of your usage limit. Uncached: ~${m.xUncached.toFixed(1)}x.`;
+  return `Your 1h cache uses ~${m.pctSavedVs5m}% less of your usage limit than 5m. Uncached: ~${m.xUncached.toFixed(1)}x.`;
 }
 
 function endingReceipt(s: Summary, ink: Ink, sym: Sym, planPrice?: number): EndingRender {
@@ -945,7 +961,7 @@ export function renderFull(s: Summary, opts: RenderOptions): FullRenderResult {
   lines.push("");
   lines.push(...checkupLines(s, ink, sym));
   lines.push("");
-  lines.push(numberBox(s, ink, sym, opts.planPrice));
+  lines.push(numberBox(s, ink, sym, opts.planPrice, opts.planName));
   lines.push("");
   lines.push(...gapBars(s, ink, useAscii, sym));
   lines.push("");
@@ -965,7 +981,9 @@ export function renderCard(s: Summary, opts: RenderOptions): string {
   const ink = makeInk(opts.tty && !opts.noColor);
   const sym = makeSym(!opts.tty);
   const top = wrappedLines(s, ink, sym, opts.showProjects === true).slice(1, 2); // first insight line only (already prefixed with "  » ")
-  const lines = [numberBox(s, ink, sym, opts.planPrice), "", ...top, "", shareRail(ink, sym)[1]];
+  const story = usagePatternStory(s).text.replace(/[—–]/g, sym.dash);
+  const storyLines = wrapLine(`Usage pattern: ${story}`, 76).map((line) => `  ${line}`);
+  const lines = [numberBox(s, ink, sym, opts.planPrice, opts.planName), "", ...top, "", ...storyLines, "", shareRail(ink, sym)[1]];
   return lines.join("\n");
 }
 

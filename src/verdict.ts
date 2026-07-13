@@ -29,6 +29,7 @@ import {
 } from "./costmodel.js";
 import { THRESHOLD } from "./pricing.js";
 import type { Branch, Regime, Summary, TurnEvent, TtlRealityCheck } from "./types.js";
+import { readAccountPlan } from "./account.js";
 
 export interface EnvHints {
   enable1h: boolean;
@@ -38,6 +39,8 @@ export interface EnvHints {
   hasApiKey: boolean;
   /** true if we could read settings.json at all. */
   settingsFound: boolean;
+  accountSubscription?: boolean;
+  accountEvidence?: string[];
 }
 
 /** Read env-relevant hints from ~/.claude/settings.json (+ process env). */
@@ -73,7 +76,9 @@ export function readEnvHints(home: string = homedir(), env: NodeJS.ProcessEnv = 
   if (env["CLAUDE_CODE_USE_VERTEX"] === "1") useVertex = true;
   if (penv("ANTHROPIC_API_KEY")) hasApiKey = true;
 
-  return { enable1h, force5m, useBedrock, useVertex, hasApiKey, settingsFound };
+  const account = readAccountPlan(home);
+  const accountSubscription = account.kind === "recognized" || account.kind === "subscription";
+  return { enable1h, force5m, useBedrock, useVertex, hasApiKey, settingsFound, accountSubscription, accountEvidence: account.evidence };
 }
 
 export interface BranchResult {
@@ -89,6 +94,7 @@ export function detectBranch(hints: EnvHints, regime: Regime, jsonMode: boolean)
   if (hints.useBedrock) ev.push("CLAUDE_CODE_USE_BEDROCK set (API/Bedrock billing)");
   if (hints.useVertex) ev.push("CLAUDE_CODE_USE_VERTEX set (API/Vertex billing)");
   if (hints.hasApiKey) ev.push("ANTHROPIC_API_KEY present (API billing)");
+  if (hints.accountSubscription) ev.push(...(hints.accountEvidence ?? ["local account metadata indicates subscription billing"]));
   if (hints.enable1h) ev.push("ENABLE_PROMPT_CACHING_1H=1 in settings (opted into 1h)");
   if (hints.force5m) ev.push("FORCE_PROMPT_CACHING_5M=1 in settings (pinned to 5m)");
   ev.push(`observed write regime: ${regime}`);
@@ -108,8 +114,17 @@ export function detectBranch(hints: EnvHints, regime: Regime, jsonMode: boolean)
     return { branch: jsonMode ? "ambiguous" : "api-5m", evidence: ev };
   }
 
-  // No API-provider signal. The 1h flag is API-only, so if it's set without a
-  // provider hint we still lean API (user may set the key via keychain/helper).
+  if (hints.accountSubscription) {
+    ev.push(
+      hints.enable1h
+        ? "=> subscription (recognized local account metadata; ignoring provider-less 1h flag)"
+        : "=> subscription (recognized local account metadata)",
+    );
+    return { branch: "subscription", evidence: ev };
+  }
+
+  // No API-provider or subscription signal. The 1h flag is API-only, so if
+  // it's set here we lean API (the user may set the key via keychain/helper).
   if (hints.enable1h) {
     ev.push("=> 1h flag set without provider hint; treating as API-billed on 1h");
     return { branch: "api-1h", evidence: ev };

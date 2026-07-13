@@ -48,15 +48,17 @@ import {
   noShareEnvSet,
   openExternal,
   revealFile,
-  runShareAccept,
-  SHARE_PROMPT_LINE,
+  runLinkedInShare,
   xIntentUrl,
 } from "./share.js";
 import { writeCardImage } from "./cardimage.js";
+import { readAccountPlan } from "./account.js";
+import { parseConfirmation } from "./consent.js";
+import { readFinalActionKey } from "./keymenu.js";
+import { detailedReportMarkdown, writeDetailedReport, type ReportWriteResult } from "./report.js";
 import {
   checkupLines,
   decideEnding,
-  gapBars,
   makeScanProgress,
   pickLoadingPun,
   renderAmbiguousNotice,
@@ -66,10 +68,8 @@ import {
   renderExplain,
   renderFull,
   renderMarkdown,
-  shareRail,
   shareTemplate,
   trustLine,
-  wrappedLines,
 } from "./render.js";
 import { makeInk, makeSym } from "./format.js";
 import type { Branch, Summary } from "./types.js";
@@ -256,88 +256,83 @@ function useColor(args: Args, tty: boolean): boolean {
 // ------------------------------------------------------------- prompt/ask
 
 /** A single [y/N]-style prompt on stdin. Never used on transcript files — stdin only. */
-function promptYesNo(question: string): Promise<boolean> {
+function promptYesNo(question: string, defaultYes = false): Promise<boolean> {
   return new Promise((resolve) => {
     const rl = createInterface({ input: process.stdin, output: process.stdout });
     rl.question(question, (answer) => {
       rl.close();
-      resolve(/^y(es)?$/i.test(answer.trim()));
+      resolve(parseConfirmation(answer, defaultYes));
     });
   });
 }
 
-/** One free-form prompt line on stdin (share CTA). */
-function promptLine(question: string): Promise<string> {
-  return new Promise((resolve) => {
-    const rl = createInterface({ input: process.stdin, output: process.stdout });
-    rl.question(question, (answer) => {
-      rl.close();
-      resolve(answer.trim().toLowerCase());
-    });
-  });
+function resolvedPlanPrice(args: Args): number | undefined {
+  if (args.plan !== undefined) return args.plan;
+  const account = readAccountPlan(homedir());
+  return account.kind === "recognized" ? account.monthlyUsd : undefined;
 }
 
-// ------------------------------------------------------------- share CTA
+function resolvedPlanName(): string | undefined {
+  const account = readAccountPlan(homedir());
+  return account.kind === "recognized" ? account.name : undefined;
+}
 
-/**
- * The share CTA (v1.0.1; default-on, no frequency guard, as of v1.0.2).
- * TTY-interactive only — never non-TTY/CI/--json/--md/card/--compact
- * (callers gate on the checkup TTY path + the two forced re-ask moments).
- *
- * No once-per-machine gate anymore: this fires on EVERY interactive checkup
- * end, plus right after a successful enable, after a recheck showing
- * positive savings, and on the `share` subcommand — all callers just call
- * this directly now. The only way to silence it is the standing opt-out:
- * `--no-share` (the `noShare` param) or env `CACHE_REFUND_NO_SHARE`
- * (share.ts's noShareEnvSet) — checked FIRST, before the interactive check,
- * so a suppressed run prints nothing at all, not even the dim hint line.
- * Any non-[x/b/c] answer (including a bare Enter) = skip, no nag — but the
- * door stays visible via the dim "share anytime" line.
- *
- * Trust line holds: zero network requests from this process — [x]/[b] open
- * the user's own browser with prefilled text they read before posting; [c]
- * uses the local clipboard tool.
- */
-type ShareContext = "checkup" | "post-enable" | "recheck";
+function reportMarkdown(summary: Summary): string {
+  return detailedReportMarkdown(summary, renderMarkdown(summary), readAccountPlan(homedir()));
+}
 
-async function maybeSharePrompt(summary: Summary, noShare: boolean, planPrice?: number, context: ShareContext = "checkup"): Promise<void> {
-  if (noShare || noShareEnvSet()) return;
-  const interactive = process.stdout.isTTY && !process.env.CI;
-  if (!interactive) return;
-
-  const answer = await promptLine(`\n${SHARE_PROMPT_LINE}`);
-
-  if (answer === "x" || answer === "b") {
-    const text = shareTemplate(summary, context);
-    const url = answer === "x" ? xIntentUrl(text) : bskyIntentUrl(text);
-    // Generated share image (v1.0.2, replaces the screenshot ask): write the
-    // SVG card (+ best-effort PNG on darwin — X attachments need a raster),
-    // best-effort put the IMAGE ITSELF on the clipboard so the post is
-    // paste-ready (Cmd+V), and print the tip — ALL BEFORE opening the
-    // browser (see share.ts's runShareAccept: opening the browser first used
-    // to steal terminal focus before the clipboard tip ever printed).
-    await runShareAccept(url, {
-      writeCardImage: () => writeCardImage(summary, { planPrice }),
-      copyImageToClipboard,
+async function finalActionMenu(
+  summary: Summary,
+  noShare: boolean,
+  planPrice: number | undefined,
+  report: ReportWriteResult,
+): Promise<void> {
+  if (noShare || noShareEnvSet() || !process.stdout.isTTY || process.env.CI) return;
+  let image: ReturnType<typeof writeCardImage>;
+  try {
+    image = writeCardImage(summary, { planPrice, planName: resolvedPlanName() });
+  } catch {
+    process.stdout.write("\n(couldn't generate the card image)\n");
+    return;
+  }
+  const imagePath = image.pngPath ?? image.svgPath;
+  process.stdout.write(
+    "\nReady to share — press Enter to copy the card image\n\n" +
+      "  [Enter] Copy card image\n" +
+      "  [r]     Copy detailed report\n" +
+      "  [s]     Show card/report file locations\n" +
+      "  [x]     Post to X\n" +
+      "  [b]     Post to Bluesky\n" +
+      "  [l]     Post to LinkedIn\n" +
+      "  [q/Esc] Finish without copying\n",
+  );
+  const action = await readFinalActionKey(process.stdin);
+  process.stdout.write("\n");
+  if (action === "quit") return;
+  if (action === "show-paths") {
+    process.stdout.write(`card: ${imagePath}\nreport: ${report.path}\n`);
+    return;
+  }
+  if (action === "copy-report") {
+    const copied = await copyToClipboard(report.markdown);
+    process.stdout.write(copied ? "detailed report copied to clipboard\n" : `couldn't copy report — saved at ${report.path}\n`);
+    return;
+  }
+  const text = shareTemplate(summary, "checkup");
+  if (action === "linkedin") {
+    await runLinkedInShare(text, imagePath, {
+      copyToClipboard,
       revealFile,
       openExternal,
-      write: (s) => process.stdout.write(s),
-      pauseBeforeOpen: () => new Promise((r) => setTimeout(r, 1100)),
+      write: (message) => process.stdout.write(message),
     });
     return;
   }
-  if (answer === "c") {
-    const md = renderMarkdown(summary);
-    const copied = await copyToClipboard(md);
-    if (copied) {
-      process.stdout.write("copied — paste it into Slack/Teams.\n");
-    } else {
-      process.stdout.write(md + "\n\n(no clipboard tool found — copy the block above)\n");
-    }
-    return;
-  }
-  // Skipped (Enter, or anything else): stay quiet, but leave the door visible.
-  process.stdout.write(makeInk(true).dim("share anytime: npx cache-refund share\n"));
+  const clipped = image.pngPath ? await copyImageToClipboard(image.pngPath) : false;
+  process.stdout.write(clipped ? "card image copied to clipboard\n" : `card image saved at ${imagePath}\n`);
+  if (action === "copy-image") return;
+  const url = action === "x" ? xIntentUrl(text) : bskyIntentUrl(text);
+  if (!(await openExternal(url))) process.stdout.write(`couldn't launch a browser — open this yourself:\n${url}\n`);
 }
 
 /** The one interactive branch-ambiguity question: "subscription or API/Bedrock/Vertex?". */
@@ -476,7 +471,9 @@ async function dispatch(
   summary: Summary,
   renderOpts: { tty: boolean; color: boolean },
 ): Promise<number> {
-  const opts = { tty: renderOpts.tty, noColor: !renderOpts.color, showProjects: args.projects, planPrice: args.plan };
+  const planPrice = resolvedPlanPrice(args);
+  const opts = { tty: renderOpts.tty, noColor: !renderOpts.color, showProjects: args.projects, planPrice, planName: resolvedPlanName() };
+  const persistReport = () => writeDetailedReport(summary, { home: homedir(), markdown: reportMarkdown(summary) });
 
   // --json always wins (stable machine-readable schema).
   if (args.json) {
@@ -487,14 +484,12 @@ async function dispatch(
   switch (args.subcommand) {
     case "card":
       process.stdout.write(renderCard(summary, opts) + "\n");
+      persistReport();
       return 0;
 
     case "share":
-      // Sharing on demand: same card + prompt as the checkup's closing frame
-      // (there's no frequency guard to bypass anymore — see maybeSharePrompt
-      // — running `share` just asks, same as any other checkup end).
       process.stdout.write(renderCard(summary, opts) + "\n");
-      await maybeSharePrompt(summary, args.noShare, args.plan);
+      await finalActionMenu(summary, args.noShare, planPrice, persistReport());
       return 0;
 
     // "enable" / "revert" never reach this switch: non-json runs are
@@ -506,15 +501,16 @@ async function dispatch(
     case "verify": {
       const res = await runVerify({ home: homedir() });
       process.stdout.write(res.message.join("\n") + "\n");
+      persistReport();
       return 0;
     }
 
     case "recheck": {
       const res = await runRecheck({ home: homedir() });
       process.stdout.write(res.message.join("\n") + "\n");
+      const report = persistReport();
       if ((res.savedSinceEnable ?? 0) > 0) {
-        // High-emotion re-ask moment #2: a receipt showing positive savings.
-        await maybeSharePrompt(summary, args.noShare, args.plan, "recheck");
+        await finalActionMenu(summary, args.noShare, planPrice, report);
       }
       return 0;
     }
@@ -533,14 +529,17 @@ async function renderCheckup(
 ): Promise<number> {
   if (args.md) {
     process.stdout.write(renderMarkdown(summary) + "\n");
+    writeDetailedReport(summary, { home: homedir(), markdown: reportMarkdown(summary) });
     return 0;
   }
   if (args.compact) {
     process.stdout.write(renderCompact(summary, opts) + "\n");
+    writeDetailedReport(summary, { home: homedir(), markdown: reportMarkdown(summary) });
     return 0;
   }
   if (args.explain) {
     process.stdout.write(renderExplain(summary) + "\n");
+    writeDetailedReport(summary, { home: homedir(), markdown: reportMarkdown(summary) });
     return 0;
   }
 
@@ -548,55 +547,24 @@ async function renderCheckup(
     // Plain ASCII, no stagger, no in-place updates, single shot.
     const full = renderFull(summary, opts);
     process.stdout.write(full.lines.join("\n") + "\n");
+    writeDetailedReport(summary, { home: homedir(), markdown: reportMarkdown(summary) });
     return await maybeConsentFromEnding(args, summary, full.needsConsent, full.consentVerb);
   }
 
-  // TTY path: staggered reveal of the trust line and CHECKUP header, then
-  // the rest prints normally. Never clears the screen at any point.
-  //
-  // v1.0.2: no score-box print here anymore. The closing card below (after
-  // the ending) is the ONLY box in the whole interactive run — one
-  // screenshot-worthy frame at the end, not two. Ending C's receipt total
-  // needs nothing extra "at the bottom" for this: the closing card reuses
-  // renderCard(), which itself wraps numberBox(), so the receipt's headline
-  // figure already lands there. Non-TTY/CI output is untouched (renderFull,
-  // used by the !opts.tty branch above, still prints its box up top — see
-  // render.ts's craft-laws comment: that snapshot must not change).
-  //
-  // Tail order (v1.0.2): ending -> closing card -> gap bars + verdict line
-  // -> share prompt. Gap bars moved from right after CHECKUP to right after
-  // the closing card, so the terminal's last frame mirrors the generated
-  // share image's own composition (cardimage.ts's buildCardSvg: hero block,
-  // then the gap-bars breakdown) — screenshot and card now read the same way.
   const ink = makeInk(!opts.noColor);
   // Reached only when opts.tty is true (see the !opts.tty branch above), so
   // this is always the Unicode table — ascii-ness tracks TTY-ness.
   const sym = makeSym(false);
   await staggerPrint(checkupLines(summary, ink, sym));
-  process.stdout.write("\n" + wrappedLines(summary, ink, sym, args.projects).join("\n") + "\n\n");
-
   const kind = decideEnding(summary);
   const ending = renderEnding(summary, kind, ink, sym, opts.planPrice);
-  process.stdout.write(ending.lines.join("\n") + "\n\n");
-  process.stdout.write(shareRail(ink, sym, { closingCardFollows: true }).join("\n") + "\n");
+  process.stdout.write("\n" + ending.lines.join("\n") + "\n");
 
   const code = await maybeConsentFromEnding(args, summary, ending.needsConsent, ending.consentVerb);
-
-  // Closing card (v1.0.2, TTY full checkup only): the run ends by dealing
-  // your card — the exact `card` block re-printed as the final frame, so the
-  // tail of the terminal IS the screenshot. After the rail (and any consent
-  // flow, which would otherwise push it up), before the gap bars.
-  // Non-TTY/CI output is unchanged (this is the TTY branch only).
+  const report = writeDetailedReport(summary, { home: homedir(), markdown: reportMarkdown(summary) });
+  process.stdout.write(report.ok ? `\nDetailed report saved to ${report.path}\n` : `\nWarning: couldn't save detailed report (${report.error})\n`);
   process.stdout.write("\n" + renderCard(summary, opts) + "\n");
-
-  // Gap bars + verdict line (moved here, v1.0.2 — see the tail-order comment
-  // above), after the closing card, before the share prompt.
-  process.stdout.write("\n" + gapBars(summary, ink, false, sym).join("\n") + "\n");
-
-  // Share CTA, after the gap bars (TTY path only — the non-TTY branch
-  // above never prompts). Fires every time (see maybeSharePrompt) unless
-  // suppressed by --no-share / CACHE_REFUND_NO_SHARE.
-  await maybeSharePrompt(summary, args.noShare, args.plan);
+  await finalActionMenu(summary, args.noShare, opts.planPrice, report);
   return code;
 }
 
@@ -632,11 +600,11 @@ function sleep(ms: number): Promise<void> {
 async function runStandaloneAction(args: Args): Promise<number> {
   const verb: "enable" | "revert" = args.subcommand === "enable" ? "enable" : "revert";
   const interactive = process.stdout.isTTY && !process.env.CI;
-  const verbLabel = verb === "enable" ? "Claim your cache refund (sets 1h TTL)" : "Revert to 5m now";
+  const verbLabel = verb === "enable" ? "Switch to the 1-hour cache" : "Revert to the 5-minute cache";
 
   let confirmed = args.yes;
   if (!confirmed && interactive) {
-    confirmed = await promptYesNo(`${verbLabel}? [y/N] `);
+    confirmed = await promptYesNo(`${verbLabel}? ${verb === "enable" ? "[Y/n]" : "[y/N]"} `, verb === "enable");
   }
   if (!confirmed) {
     process.stdout.write(
@@ -670,11 +638,6 @@ async function runStandaloneAction(args: Args): Promise<number> {
   }
   const res = applyEnable({ home: homedir(), summary });
   process.stdout.write(res.message.join("\n") + "\n");
-  if (res.applied && summary) {
-    // High-emotion re-ask moment #1 (standalone `enable` route). Skipped
-    // when no Summary exists (empty corpus) — no numbers to fill a template.
-    await maybeSharePrompt(summary, args.noShare, args.plan, "post-enable");
-  }
   return 0;
 }
 
@@ -690,11 +653,15 @@ async function maybeConsentFromEnding(
   // (piped) also never prompts: print the manual instruction and exit 0 —
   // never prompt when not attached to a TTY.
   const interactive = process.stdout.isTTY && !process.env.CI;
-  const verbLabel = consentVerb === "enable" ? "Claim your cache refund (sets 1h TTL)" : "Revert to 5m now";
+  const monthly = Math.abs(summary.counterfactual.delta30d);
+  const verbLabel = consentVerb === "enable"
+    ? `Switch to the 1-hour cache and save about $${monthly.toFixed(2)}/month`
+    : `Revert to the 5-minute cache and save about $${monthly.toFixed(2)}/month`;
 
   let confirmed = args.yes;
   if (!confirmed && interactive) {
-    confirmed = await promptYesNo(`${verbLabel}? [y/N] `);
+    const defaultYes = consentVerb === "enable";
+    confirmed = await promptYesNo(`${verbLabel}? ${defaultYes ? "[Y/n]" : "[y/N]"} `, defaultYes);
   }
 
   if (!confirmed) {
@@ -711,10 +678,6 @@ async function maybeConsentFromEnding(
       ? applyEnable({ home: homedir(), summary })
       : applyRevert({ home: homedir() });
   process.stdout.write("\n" + res.message.join("\n") + "\n");
-  if (res.applied && consentVerb === "enable") {
-    // High-emotion re-ask moment #1: right after a successful enable.
-    await maybeSharePrompt(summary, args.noShare, args.plan, "post-enable");
-  }
   return 0;
 }
 

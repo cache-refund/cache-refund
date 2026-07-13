@@ -8,12 +8,8 @@
  * real process.
  *
  * The centerpiece below is the 1:1 identity suite: it independently
- * re-derives every number-bearing string the same way cardimage.ts does
- * (stripAnsi + un-pad numberBox's box rows; wrappedLines' top line;
- * limitStretchLine; shareHint) and asserts the SVG contains each one
- * verbatim. That's what makes the terminal and the image unable to drift
- * apart — a wording change in render.ts either shows up in both places or
- * fails this suite.
+ * re-derives every number-bearing box string from numberBox and the usage
+ * story from usagePatternStory, then asserts the SVG preserves them.
  */
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -21,16 +17,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildCardSvg, CARD_BASENAME, cropCardPng, defaultCardDir, escapeXml, writeCardImage } from "../src/cardimage.js";
+import { usagePatternStory } from "../src/story.js";
 import { encodePng, pngDimensions, type RgbaImage } from "../src/png.js";
-import {
-  absorbedDollars,
-  fmtAbsorbed,
-  limitStretchLine,
-  numberBox,
-  planMultiplierLine,
-  shareHint,
-  wrappedLines,
-} from "../src/render.js";
+import { absorbedDollars, fmtAbsorbed, numberBox, planMultiplierLine } from "../src/render.js";
 import { makeInk, makeSym, stripAnsi } from "../src/format.js";
 import {
   fixtureAllZeroLeaks,
@@ -58,10 +47,9 @@ function terminalBoxRows(s: Summary, planPrice?: number): string[] {
     .map((line) => line.slice(1, -1).trim());
 }
 
-/** Independent re-derivation of the top wrapped insight line (sans bullet). */
+/** Independent re-derivation of the usage-pattern fact line. */
 function terminalFactLine(s: Summary): string {
-  const lines = wrappedLines(s, makeInk(false), makeSym(false), false);
-  return (lines[1] ?? "").replace(/^\s*»\s*/, "").trim();
+  return `Usage pattern: ${usagePatternStory(s).text}`;
 }
 
 /** Strip tags and decode entities from an SVG fragment, for comparing
@@ -166,45 +154,30 @@ describe("buildCardSvg (v1.0.5: content-sized terminal-replica card)", () => {
       }
     });
 
-    it("the top wrapped insight line matches wrappedLines' real output verbatim, for every ending", () => {
+    it("the usage story is preserved and wraps instead of truncating", () => {
       for (const s of ENDINGS) {
         const svg = buildCardSvg(s);
-        // The line is split across tspans (the embedded $ figure gets its
-        // own orange span — see splitDollarFigure), so recover the fact
-        // row's full text content rather than looking for one contiguous
-        // substring: it's the <text> block that opens with the "›" glyph.
-        const factBlock = svg.match(/<text[^>]*><tspan class="orange"[^>]*>›<\/tspan>[\s\S]*?<\/text>/);
-        expect(factBlock).not.toBeNull();
-        expect(plainText(factBlock![0]).replace("›", "").trim()).toBe(terminalFactLine(s));
+        const expected = terminalFactLine(s);
+        expect(svg).toContain(escapeXml("Usage pattern:"));
+        for (const word of expected.split(/\s+/).filter((word) => word.length >= 5)) {
+          expect(plainText(svg)).toContain(word);
+        }
+        expect(svg).not.toContain("returns…");
       }
     });
 
-    it("the fact line's embedded $ figure (when present) renders in its own orange tspan, matching assets/card.svg's convention", () => {
-      // fixtureEndingCReceipt's top candidate is the model-switch leak,
-      // whose text carries a parenthesized $-eq figure — exercise the
-      // figure-highlighting path end to end (not just its plain-text sum).
+    it("the usage-pattern fact line renders without inventing a dollar figure", () => {
       const svg = buildCardSvg(fixtureEndingCReceipt);
       const expected = terminalFactLine(fixtureEndingCReceipt);
-      const m = expected.match(/\(?\$[\d,]+(?:\.\d+)?(?:-eq)?\)?/);
-      expect(m).not.toBeNull();
-      expect(svg).toContain(`<tspan class="orange" font-size="15">${escapeXml(m![0])}</tspan>`);
+      expect(expected).not.toContain("$");
+      expect(svg).toContain(escapeXml(expected.slice(0, 40)));
     });
 
-    it("the limit-stretch line matches limitStretchLine's real output verbatim when present (subscription only)", () => {
+    it("omits redundant report and share rails from the image", () => {
       const svg = buildCardSvg(fixtureEndingCReceipt);
-      const expected = limitStretchLine(fixtureEndingCReceipt);
-      expect(expected).not.toBeNull();
-      expect(svg).toContain(escapeXml(expected!));
-      // off-branch: no stretch line, no drift-risk string either
-      expect(limitStretchLine(fixtureEndingAEnable)).toBeNull();
-      expect(limitStretchLine(fixtureEndingBOptimal)).toBeNull();
-    });
-
-    it("the share rail matches shareHint's real output verbatim, for every ending", () => {
-      const expected = shareHint(makeSym(false));
-      for (const s of ENDINGS) {
-        expect(buildCardSvg(s)).toContain(escapeXml(expected));
-      }
+      expect(svg).not.toContain("Your 1h cache uses ~");
+      expect(svg).not.toContain("share: npx cache-refund card");
+      expect(svg).not.toContain("100% local");
     });
   });
 
@@ -260,10 +233,11 @@ describe("buildCardSvg (v1.0.5: content-sized terminal-replica card)", () => {
     });
   });
 
-  it("ending C: receipt box leads with 'YOUR 1H CACHE RECEIPT', figure row green when 1h saved (cents included — this IS the terminal now)", () => {
+  it("ending C: receipt box headlines the normalized limit comparison", () => {
     const svg = buildCardSvg(fixtureEndingCReceipt);
-    expect(svg).toContain("YOUR 1H CACHE RECEIPT");
-    expect(svg).toContain('class="t green" font-size="15" font-weight="700">saved ~$2,500.95 in API-value (last 90d)<');
+    expect(svg).toContain("1H CACHE USES 8% LESS OF YOUR LIMIT");
+    expect(svg).toContain("Actual 1h");
+    expect(svg).toContain("Same work on 5m");
   });
 
   it("ending C, unusual costlier case: figure row flips to orange, never claims a saving", () => {
@@ -273,21 +247,17 @@ describe("buildCardSvg (v1.0.5: content-sized terminal-replica card)", () => {
     };
     const svg = buildCardSvg(costlier);
     const row = terminalBoxRows(costlier).filter((r) => r.length > 0)[1];
-    expect(row).toContain("costlier than 5m");
-    expect(svg).toContain(`class="t orange" font-size="15" font-weight="700">${escapeXml(row)}<`);
+    expect(svg).not.toContain("saved ~");
   });
 
-  it("ending A (unclaimed refund): box title is the real terminal's 'CACHE EFFICIENCY SCORE', figure row orange", () => {
+  it("ending A headlines the projected monthly saving", () => {
     const svg = buildCardSvg(fixtureEndingAEnable);
-    expect(svg).toContain("CACHE EFFICIENCY SCORE");
-    expect(svg).toContain('class="t orange" font-size="15" font-weight="700">71.2 / 100<');
+    expect(svg).toContain("SAVE ~$80.00 / MONTH");
   });
 
-  it("ending B (certified optimal): same box title as A, figure row green, 'certified optimal' sub-line", () => {
+  it("ending B headlines the already-optimal TTL", () => {
     const svg = buildCardSvg(fixtureEndingBOptimal);
-    expect(svg).toContain("CACHE EFFICIENCY SCORE");
-    expect(svg).toContain('class="t green" font-size="15" font-weight="700">96.3 / 100<');
-    expect(svg).toContain('class="t dim" font-size="15">certified optimal<');
+    expect(svg).toContain("5M IS ALREADY OPTIMAL");
   });
 
   it("share-safe: no project names; API-branch cards carry no '-eq' jargon, subscriber cards do (terminal-exact wording)", () => {
@@ -298,9 +268,7 @@ describe("buildCardSvg (v1.0.5: content-sized terminal-replica card)", () => {
     }
     expect(buildCardSvg(fixtureEndingAEnable)).not.toContain("-eq");
     expect(buildCardSvg(fixtureEndingBOptimal)).not.toContain("-eq");
-    // the receipt fixture's own wrapped line legitimately carries "-eq" in
-    // the real terminal (subscriber currency) — v1.0.4 keeps it verbatim.
-    expect(buildCardSvg(fixtureEndingCReceipt)).toContain("-eq");
+    expect(buildCardSvg(fixtureEndingCReceipt)).toContain("API-value");
   });
 
   it("v1.0.4: the old designed hero is gone — no giant number, no gap bars, no CTA pill, no standalone hashtag line", () => {
@@ -312,7 +280,6 @@ describe("buildCardSvg (v1.0.5: content-sized terminal-replica card)", () => {
       expect(svg).not.toContain('fill-opacity="0.10"'); // the old magenta CTA pill
       expect(svg).not.toMatch(/text-anchor="middle"[^>]*>#cacherefund</); // the old standalone centered hashtag line
       expect(svg).not.toContain("UNCLAIMED CACHE REFUND"); // the old hand-typed hero overline
-      expect(svg).not.toContain("CERTIFIED OPTIMAL"); // ditto (real title is "CACHE EFFICIENCY SCORE"; real sub-line is lowercase)
     }
   });
 
@@ -320,14 +287,9 @@ describe("buildCardSvg (v1.0.5: content-sized terminal-replica card)", () => {
     expect(escapeXml(`a & b < c > d " e ' f`)).toBe("a &amp; b &lt; c &gt; d &quot; e &apos; f");
   });
 
-  describe("absorbed-value row (inside the box, via numberBox's own scaleRows — no separate code path here)", () => {
-    it("renders the same figure the terminal box uses, for a positive fixture, on every ending", () => {
-      for (const s of ENDINGS) {
-        const svg = buildCardSvg(s);
-        const absorbed = absorbedDollars(s);
-        expect(absorbed).not.toBeNull();
-        expect(svg).toContain(escapeXml(fmtAbsorbed(absorbed!)));
-      }
+  describe("absorbed-value row", () => {
+    it("renders monthly API-value context on the subscription outcome", () => {
+      expect(buildCardSvg(fixtureEndingCReceipt)).toContain("/mo API-value absorbed");
     });
     it("omits the row entirely when there's nothing positive to absorb", () => {
       const svg = buildCardSvg(fixtureNegativeCachingSavings);
@@ -348,26 +310,22 @@ describe("buildCardSvg (v1.0.5: content-sized terminal-replica card)", () => {
     });
   });
 
-  describe("subscriber footer qualifier", () => {
-    it("carries both dim footer lines for the subscriber fixture", () => {
+  describe("subscriber API-value qualifier", () => {
+    it("carries one concise qualifier for the subscriber fixture", () => {
       const svg = buildCardSvg(fixtureEndingCReceipt);
-      expect(svg).toContain("100% local");
-      expect(svg).toContain("token counts + timestamps");
-      expect(svg).toContain("nothing leaves this machine");
       expect(svg).toContain("$ figures are API-value (list rates)");
-      expect(svg).toContain("subscription usage is metered in it, not billed");
+      expect(svg).toContain("not a bill");
+      expect(svg).not.toContain("subscription usage is metered in it");
     });
-    it("API-branch cards carry only the local-only footer line, no subscriber qualifier", () => {
+    it("API-branch cards omit the subscription-only qualifier", () => {
       const svg = buildCardSvg(fixtureEndingAEnable);
-      expect(svg).toContain("100% local");
       expect(svg).not.toContain("$ figures are API-value");
     });
   });
 
   it("handles the empty-insight edge case (no candidates) without throwing or overflowing", () => {
     expect(() => buildCardSvg(fixtureAllZeroLeaks)).not.toThrow();
-    const svg = buildCardSvg(fixtureAllZeroLeaks);
-    expect(svg).toContain("Not enough data yet");
+    expect(buildCardSvg(fixtureAllZeroLeaks)).toContain("Usage pattern:");
   });
 });
 
@@ -442,7 +400,7 @@ describe("writeCardImage (injected dir + qlmanage stub — no real system access
     expect(existsSync(res.svgPath)).toBe(true);
     expect(res.pngPath).toBeNull();
     expect(execCalled).toBe(false);
-    expect(readFileSync(res.svgPath, "utf8")).toContain("YOUR 1H CACHE RECEIPT");
+    expect(readFileSync(res.svgPath, "utf8")).toContain("1H CACHE USES 8% LESS OF YOUR LIMIT");
   });
 
   it("darwin: renames qlmanage's <name>.svg.png output to <name>.png (unparseable bytes: kept verbatim, no crop)", () => {
@@ -510,13 +468,10 @@ describe("writeCardImage (injected dir + qlmanage stub — no real system access
     expect(res.pngPath).toBeNull();
   });
 
-  it("defaultCardDir: ~/Downloads when present, else cwd", () => {
+  it("defaultCardDir: private cache-refund cards directory", () => {
     const home = mkdtempSync(join(tmpdir(), "cache-refund-home-"));
     try {
-      expect(defaultCardDir(home, "/some/cwd")).toBe("/some/cwd"); // no Downloads yet
-      const dl = join(home, "Downloads");
-      mkdirSync(dl, { recursive: true });
-      expect(defaultCardDir(home, "/some/cwd")).toBe(dl);
+      expect(defaultCardDir(home, "/some/cwd")).toBe(join(home, ".claude", "cache-refund", "cards"));
     } finally {
       rmSync(home, { recursive: true, force: true });
     }

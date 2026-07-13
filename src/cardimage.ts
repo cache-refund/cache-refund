@@ -17,14 +17,10 @@
  * below. If the converter's layout ever changes, the guard keeps the
  * uncropped square (graceful degradation).
  *
- * THE 1:1 GUARANTEE: nothing in the box, the wrapped insight line, the
- * limit-stretch line, or the share rail is hand-typed here. Every one of
- * those strings is pulled straight out of the same render.ts functions the
- * real terminal calls (numberBox, wrappedLines, limitStretchLine,
- * shareHint) — this file only strips ANSI, un-pads the box's border and
- * centering, and lays the result out as SVG text. The terminal and the
- * image can't drift apart, because the image never carries its own copy of
- * any number-bearing string to drift from. See boxContentRows/factLine below.
+ * The receipt box is pulled straight from numberBox(), while the usage story
+ * is shared with the terminal through usagePatternStory(). The image keeps
+ * only those two narrative layers plus a concise subscriber-only API-value
+ * qualifier, avoiding duplicate report/share rails below the visual.
  *
  * Share-safe rules (same as the terminal + share templates): NEVER project
  * names — the wrapped line is derived with showProjects hardcoded false, the
@@ -38,13 +34,14 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { decideEnding, limitStretchLine, numberBox, shareHint, wrappedLines } from "./render.js";
+import { decideEnding, numberBox } from "./render.js";
 import { makeInk, makeSym, stripAnsi } from "./format.js";
 import { cropTop, decodePng, encodePng } from "./png.js";
 import type { Summary } from "./types.js";
+import { usagePatternStory } from "./story.js";
 
 export const CARD_BASENAME = "cache-refund-card";
 
@@ -94,15 +91,13 @@ const TEXT_WIDTH = TEXT_RIGHT - TEXT_LEFT;
 
 const ROW_H = 26;
 const FONT = 15;
-const FONT_DIM = 13; // the limit-stretch line + share rail: secondary, still on the row grid
 const FOOTER_FONT = 12;
 const FOOTER_ROW_H = 19;
 const PAD_TOP = 20;
 const PAD_BOTTOM = 20;
 const GAP_AFTER_PROMPT = 14;
 const GAP_AFTER_BOX = 20;
-const GAP_BEFORE_SHARE = 14;
-const GAP_BEFORE_FOOTER = 20;
+const GAP_BEFORE_FOOTER = 12;
 
 const BOX_W = 560;
 const BOX_X = WIN_X + (WIN_W - BOX_W) / 2;
@@ -128,6 +123,25 @@ function truncateRow(text: string, maxChars: number): string {
   return `${text.slice(0, Math.max(1, maxChars - 1)).trimEnd()}…`;
 }
 
+/** Word-wrap without dropping text; a pathological long token is truncated. */
+function wrapRows(text: string, maxChars: number): string[] {
+  const words = text.split(/\s+/).filter(Boolean);
+  const rows: string[] = [];
+  let row = "";
+  for (const rawWord of words) {
+    const word = truncateRow(rawWord, maxChars);
+    const candidate = row.length === 0 ? word : `${row} ${word}`;
+    if (candidate.length <= maxChars) {
+      row = candidate;
+    } else {
+      if (row.length > 0) rows.push(row);
+      row = word;
+    }
+  }
+  if (row.length > 0) rows.push(row);
+  return rows;
+}
+
 // -------------------------------------------------------- terminal-exact derivation
 
 /**
@@ -140,8 +154,8 @@ function truncateRow(text: string, maxChars: number): string {
  * cannot drift apart. Blank spacer rows survive as "" (rendered as vertical
  * gaps below, not text nodes — see buildCardSvg's box-row loop).
  */
-function boxContentRows(s: Summary, planPrice?: number): string[] {
-  const rendered = stripAnsi(numberBox(s, makeInk(true), makeSym(false), planPrice));
+function boxContentRows(s: Summary, planPrice?: number, planName?: string): string[] {
+  const rendered = stripAnsi(numberBox(s, makeInk(true), makeSym(false), planPrice, planName));
   const lines = rendered.split("\n");
   // First/last lines are the box's own top/bottom border (the top one
   // carries the woven brand label, e.g. "╭─── cache-refund ───…───╮"); the
@@ -174,8 +188,7 @@ function figureColor(s: Summary): "green" | "orange" {
  * default `card` itself renders with.
  */
 function factLine(s: Summary): string {
-  const lines = wrappedLines(s, makeInk(false), makeSym(false), false);
-  return (lines[1] ?? "").replace(/^\s*»\s*/, "").trim();
+  return `Usage pattern: ${usagePatternStory(s).text}`;
 }
 
 /**
@@ -188,12 +201,6 @@ function factLine(s: Summary): string {
  * Greedily includes an immediately-adjacent enclosing "(" / ")" so a
  * parenthesized figure highlights as one unit, same as the hand-built asset.
  */
-function splitDollarFigure(text: string): { pre: string; figure: string | null; post: string } {
-  const m = text.match(/\(?\$[\d,]+(?:\.\d+)?(?:-eq)?\)?/);
-  if (!m || m.index === undefined) return { pre: text, figure: null, post: "" };
-  return { pre: text.slice(0, m.index), figure: m[0], post: text.slice(m.index + m[0].length) };
-}
-
 // ------------------------------------------------------------------- build
 
 interface BuiltCard {
@@ -205,8 +212,7 @@ interface BuiltCard {
 /**
  * Build the content-sized SVG card: a dark terminal window replicating
  * `card`'s real output — the branded score/receipt box, the top wrapped
- * insight line, the optional limit-stretch line, and the share rail, at a
- * consistent line height — plus a short local-only footer. The canvas is
+ * usage story, and a concise subscriber-only API-value qualifier. The canvas is
  * 720 wide and exactly windowHeight + 2*MARGIN tall, window top-anchored at
  * MARGIN (nothing to center in — the canvas hugs the card). See the file
  * doc comment for the 1:1 guarantee that keeps every substituted string
@@ -217,16 +223,13 @@ interface BuiltCard {
  * numberBox, the same function the terminal box uses, so there is no
  * separate plan-line code path here to keep in sync.
  */
-function buildCard(s: Summary, planPrice?: number): BuiltCard {
+function buildCard(s: Summary, planPrice?: number, planName?: string): BuiltCard {
   const subscriber = s.currency !== "USD";
 
   // ---- terminal-exact derivation (the 1:1 guarantee) ----
-  const bodyRows = boxContentRows(s, planPrice);
+  const bodyRows = boxContentRows(s, planPrice, planName);
   const figColor = figureColor(s);
-  const fact = truncateRow(factLine(s), ROW_MAX_CHARS - 2); // reserve 2 cols for "› "
-  const stretchRaw = limitStretchLine(s);
-  const stretch = stretchRaw !== null ? truncateRow(stretchRaw, ROW_MAX_CHARS) : null;
-  const rail = shareHint(makeSym(false));
+  const factRows = wrapRows(factLine(s), ROW_MAX_CHARS - 2); // reserve 2 cols for "› "
 
   const boxH = bodyRows.length * ROW_H + BOX_PAD_Y * 2;
 
@@ -237,20 +240,11 @@ function buildCard(s: Summary, planPrice?: number): BuiltCard {
   const boxTopRel = cursor;
   cursor += boxH + GAP_AFTER_BOX;
   const factYRel = cursor;
-  cursor += ROW_H;
-  let stretchYRel: number | null = null;
-  if (stretch !== null) {
-    stretchYRel = cursor;
-    cursor += ROW_H;
-  }
-  cursor += GAP_BEFORE_SHARE;
-  const shareYRel = cursor;
-  cursor += ROW_H + GAP_BEFORE_FOOTER;
-  const footer1YRel = cursor;
-  cursor += FOOTER_ROW_H;
-  let footer2YRel: number | null = null;
+  cursor += factRows.length * ROW_H;
+  let footerYRel: number | null = null;
   if (subscriber) {
-    footer2YRel = cursor;
+    cursor += GAP_BEFORE_FOOTER;
+    footerYRel = cursor;
     cursor += FOOTER_ROW_H;
   }
   cursor += PAD_BOTTOM;
@@ -281,28 +275,19 @@ function buildCard(s: Summary, planPrice?: number): BuiltCard {
 
   const promptSvg = `<text x="${TEXT_LEFT}" y="${contentTop + promptYRel + ROW_H / 2 + 5}" class="t dim" font-size="${FONT}">${escapeXml("$ ")}<tspan class="t txt">${escapeXml("npx cache-refund card")}</tspan></text>`;
 
-  const { pre: factPre, figure: factFigure, post: factPost } = splitDollarFigure(fact);
-  const factFigureSvg =
-    factFigure !== null
-      ? `<tspan class="orange" font-size="${FONT}">${escapeXml(factFigure)}</tspan><tspan class="txt" font-size="${FONT}">${escapeXml(factPost)}</tspan>`
-      : "";
-  const factSvg = `<text x="${TEXT_LEFT}" y="${contentTop + factYRel + ROW_H / 2 + 5}" class="t"><tspan class="orange" font-size="${FONT}">${escapeXml("›")}</tspan><tspan class="txt" font-size="${FONT}">${escapeXml(` ${factPre}`)}</tspan>${factFigureSvg}</text>`;
+  const factSvg = factRows
+    .map((row, index) => {
+      const y = contentTop + factYRel + index * ROW_H + ROW_H / 2 + 5;
+      const bullet = index === 0 ? `<tspan class="orange" font-size="${FONT}">${escapeXml("›")}</tspan>` : "";
+      const indent = index === 0 ? " " : "  ";
+      return `<text x="${TEXT_LEFT}" y="${y}" class="t">${bullet}<tspan class="txt" font-size="${FONT}">${escapeXml(`${indent}${row}`)}</tspan></text>`;
+    })
+    .join("\n  ");
 
-  const stretchSvg =
-    stretchYRel !== null
-      ? `<text x="${TEXT_LEFT}" y="${contentTop + stretchYRel + ROW_H / 2 + 5}" class="t dim" font-size="${FONT_DIM}">${escapeXml(stretch!)}</text>`
-      : "";
-
-  const shareSvg = `<text x="${TEXT_LEFT}" y="${contentTop + shareYRel + ROW_H / 2 + 5}" class="t dim" font-size="${FONT_DIM}">${escapeXml(rail)}</text>`;
-
-  const footer1Svg = `<text x="${TEXT_LEFT}" y="${contentTop + footer1YRel + FOOTER_ROW_H / 2 + 4}" class="t dim" font-size="${FOOTER_FONT}">${escapeXml(
-    "100% local · token counts + timestamps · nothing leaves this machine",
-  )}</text>`;
-
-  const footer2Svg =
-    footer2YRel !== null
-      ? `<text x="${TEXT_LEFT}" y="${contentTop + footer2YRel + FOOTER_ROW_H / 2 + 4}" class="t dim" font-size="${FOOTER_FONT}">${escapeXml(
-          "$ figures are API-value (list rates) — subscription usage is metered in it, not billed",
+  const footerSvg =
+    footerYRel !== null
+      ? `<text x="${TEXT_LEFT}" y="${contentTop + footerYRel + FOOTER_ROW_H / 2 + 4}" class="t dim" font-size="${FOOTER_FONT}">${escapeXml(
+          "$ figures are API-value (list rates), not a bill",
         )}</text>`
       : "";
 
@@ -325,17 +310,16 @@ function buildCard(s: Summary, planPrice?: number): BuiltCard {
   <rect x="${notchX}" y="${boxY - 9}" width="${BOX_NOTCH_W}" height="${BOX_NOTCH_H}" fill="#15161c"/>
   <text x="${boxCx}" y="${boxY + 5}" text-anchor="middle" class="t brand" font-size="14">${escapeXml("cache-refund")}</text>
   ${boxRowsSvg}
-  ${factSvg}${stretchSvg}
-  ${shareSvg}
-  ${footer1Svg}${footer2Svg}
+  ${factSvg}
+  ${footerSvg}
 </svg>
 `;
   return { svg, canvasHeight: canvasH };
 }
 
 /** Public builder: the SVG markup for this Summary (see buildCard). */
-export function buildCardSvg(s: Summary, planPrice?: number): string {
-  return buildCard(s, planPrice).svg;
+export function buildCardSvg(s: Summary, planPrice?: number, planName?: string): string {
+  return buildCard(s, planPrice, planName).svg;
 }
 
 // ---------------------------------------------------------------- png crop
@@ -425,12 +409,12 @@ export interface CardImageOpts {
   execFileSyncFn?: (cmd: string, args: string[]) => void;
   /** `--plan <usd>`, threaded to buildCardSvg — see its doc comment. */
   planPrice?: number;
+  planName?: string;
 }
 
-/** Default output dir: ~/Downloads when present, else the current directory. */
-export function defaultCardDir(home: string = homedir(), cwd: string = process.cwd()): string {
-  const downloads = join(home, "Downloads");
-  return existsSync(downloads) ? downloads : cwd;
+/** Default output dir: private cache-refund artifact directory. */
+export function defaultCardDir(home: string = homedir(), _cwd: string = process.cwd()): string {
+  return join(home, ".claude", "cache-refund", "cards");
 }
 
 /**
@@ -446,8 +430,9 @@ export function writeCardImage(s: Summary, opts: CardImageOpts = {}): CardImageR
   const dir = opts.dir ?? defaultCardDir();
   const platform = opts.platform ?? process.platform;
   const exec = opts.execFileSyncFn ?? ((cmd: string, args: string[]) => execFileSync(cmd, args, { stdio: "ignore" }));
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
 
-  const built = buildCard(s, opts.planPrice);
+  const built = buildCard(s, opts.planPrice, opts.planName);
   const svgPath = join(dir, `${CARD_BASENAME}.svg`);
   writeFileSync(svgPath, built.svg, "utf8");
 

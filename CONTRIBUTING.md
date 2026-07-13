@@ -48,9 +48,10 @@ standard library.
   [GOOD-SETTINGS.md](./GOOD-SETTINGS.md)), render/output polish, more model ids in
   the pricing table (cite the source), portability fixes.
 - **Out of scope:** generic settings-opinion features (that's `GOOD-SETTINGS.md`,
-  which is content, not product), anything that reads conversation content,
-  anything that adds a network call, and anything that writes to disk beyond the
-  single confirmed `settings.json` enable/revert edit.
+  which is content, not product), anything that reads conversation content, or
+  anything that adds a network call. Disk writes are limited to confirmed
+  settings edits, the enable baseline, aggregate Markdown reports under
+  `~/.claude/cache-refund/reports/`, and explicitly requested/generated card files.
 
 ## Previewing the other endings
 

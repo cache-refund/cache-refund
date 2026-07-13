@@ -342,7 +342,7 @@ API-value rates.* Under that assumption, X× the cost-weighted usage is X× the
 limit consumed, whatever the limit actually is:
 
 ```
-5m-cache multiple   = cost5m   / actual     (e.g. 1.09 -> "~9% more of your usage limit")
+1h savings vs 5m    = 1 - actual / cost5m   (e.g. 0.08 -> "~8% less of your usage limit")
 uncached multiple   = uncached / actual     (e.g. 3.0  -> "~3.0x")
 ```
 
@@ -354,7 +354,30 @@ isn't there). This is also how a $-priced plan "absorbs" tens of thousands of
 dollars of API-value: the plan meters your usage in that currency; it doesn't
 bill it.
 
-## 14. "Backtested against N weeks of real usage"
+The terminal card normalizes the hypothetical 5m world to **100%** and shows
+actual 1h usage below it (for example, 92%). Its headline is therefore phrased
+as "1h cache uses 8% less of your limit," not as a claim about the user's
+undisclosed absolute weekly allowance.
+
+## 14. Local account-plan evidence
+
+Branch detection can use Claude Code's local `~/.claude.json` account cache as
+an additional subscription signal. The reader allowlists only billing and tier
+fields (`billingType`, organization/user rate-limit tier, organization type,
+seat tier, and profile timestamp). It never reads or persists name, email,
+user/account IDs, or organization IDs. Recognized Max 5x/20x tiers may add plan
+framing; stale or unknown tiers remain price-free, and explicit API-provider
+signals still take precedence.
+
+## 15. Aggregate report artifacts
+
+Every successful analysis attempts an owner-only atomic Markdown write under
+`~/.claude/cache-refund/reports/`. The file contains the same content-safe
+aggregates as the CLI's Markdown output: token counts, timestamps, TTL evidence,
+counterfactuals, and leak rows. A report-write failure warns but does not change
+the analysis verdict.
+
+## 16. "Backtested against N weeks of real usage"
 
 Every number `cache-refund` prints is computed over **your own real transcripts**
 for the selected window — there is no synthetic model of your behavior. The

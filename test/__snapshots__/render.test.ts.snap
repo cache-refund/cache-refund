@@ -148,15 +148,20 @@ _methodology: npx cache-refund --explain_"
 exports[`snapshots (ANSI-stripped) > card, all three fixtures 1`] = `
 "+--- cache-refund --------------------------------------+
 |                                                       |
-|                CACHE EFFICIENCY SCORE                 |
-|                      71.2 / 100                       |
+|                 SAVE ~$80.00 / MONTH                  |
+|            1H CACHE COSTS 32% LESS THAN 5M            |
 |                                                       |
-|                  leaking real money                   |
+|      Current 5m   ####################   $246.25      |
+|      Same work 1h ##############------   $166.25      |
+|                                                       |
+|        ~$80.00 LESS OVER THE ANALYZED 30 DAYS         |
 |              205.0M tokens - 42 sessions              |
-|              absorbed $779 of API-value               |
 +-------------------------------------------------------+
 
   > Worst day: 2026-06-28 leaked $62.40 (3.1M tokens) to expired cache.
+
+  Usage pattern: Bursty, cache-heavy work with many returns after short breaks
+  - your 5m cache repeatedly expires between turns.
 
 share: npx cache-refund card  -  #cacherefund"
 `;
@@ -164,15 +169,20 @@ share: npx cache-refund card  -  #cacherefund"
 exports[`snapshots (ANSI-stripped) > card, all three fixtures 2`] = `
 "+--- cache-refund --------------------------------------+
 |                                                       |
-|                CACHE EFFICIENCY SCORE                 |
-|                      96.3 / 100                       |
+|                 5M IS ALREADY OPTIMAL                 |
+|            5M CACHE COSTS 28% LESS THAN 1H            |
 |                                                       |
-|                   certified optimal                   |
+|      Current 5m   ##############------   $123.00      |
+|      Same work 1h ####################   $171.00      |
+|                                                       |
+|        ~$96.00 LESS OVER THE ANALYZED 60 DAYS         |
 |              360.0M tokens - 80 sessions              |
-|              absorbed $834 of API-value               |
 +-------------------------------------------------------+
 
   > Worst day: 2026-06-15 leaked $4.10 (410K tokens) to expired cache.
+
+  Usage pattern: Mostly tight interactive loops - the 5m cache already fits
+  your workflow.
 
 share: npx cache-refund card  -  #cacherefund"
 `;
@@ -180,15 +190,18 @@ share: npx cache-refund card  -  #cacherefund"
 exports[`snapshots (ANSI-stripped) > card, all three fixtures 3`] = `
 "+--- cache-refund --------------------------------------+
 |                                                       |
-|                 YOUR 1H CACHE RECEIPT                 |
-|       saved ~$2,500.95 in API-value (last 90d)        |
+|          1H CACHE USES 8% LESS OF YOUR LIMIT          |
 |                                                       |
-|             efficiency score: 98.5 / 100              |
-|              15.0B tokens - 590 sessions              |
-|             absorbed $33,866 of API-value             |
+|       Actual 1h       ##################--  92%       |
+|       Same work on 5m #################### 100%       |
+|                                                       |
+|           $12,089.62/mo API-value absorbed            |
 +-------------------------------------------------------+
 
   > Model switches invalidated 70.3M tokens of cache ($513.86-eq).
+
+  Usage pattern: High-volume, long-running sessions with frequent returns
+  after 5-60 minutes - exactly where the 1h cache pays off.
 
 share: npx cache-refund card  -  #cacherefund"
 `;
@@ -203,12 +216,14 @@ CHECKUP
 
 +--- cache-refund --------------------------------------+
 |                                                       |
-|                CACHE EFFICIENCY SCORE                 |
-|                      71.2 / 100                       |
+|                 SAVE ~$80.00 / MONTH                  |
+|            1H CACHE COSTS 32% LESS THAN 5M            |
 |                                                       |
-|                  leaking real money                   |
+|      Current 5m   ####################   $246.25      |
+|      Same work 1h ##############------   $166.25      |
+|                                                       |
+|        ~$80.00 LESS OVER THE ANALYZED 30 DAYS         |
 |              205.0M tokens - 42 sessions              |
-|              absorbed $779 of API-value               |
 +-------------------------------------------------------+
 
 GAP BREAKDOWN (cache-write tokens by re-warm gap)
@@ -225,11 +240,13 @@ YOUR CACHE, WRAPPED
   > Your peak hour is 14:00 - 420 turns, more than any other hour.
   > Model switches invalidated 500K tokens of cache ($3.13).
 
-THE FIX
-
-You're on the 5-minute cache TTL. Your recoverable ratio (36.0%) is above the
-39.5% break-even - switching to the 1-hour TTL saves ~$80.00/30d (~$80.00 over
-the 30-day window analyzed).
++--- cache-refund --------------------------------------+
+|                                                       |
+|                 SAVE ~$80.00 / MONTH                  |
+|            1H CACHE COSTS 32% LESS THAN 5M            |
+|        ~$80.00 LESS OVER THE ANALYZED 30 DAYS         |
+|                                                       |
++-------------------------------------------------------+
 
   diff:
     "env": { "ENABLE_PROMPT_CACHING_1H": "1" }
@@ -251,12 +268,14 @@ CHECKUP
 
 +--- cache-refund --------------------------------------+
 |                                                       |
-|                CACHE EFFICIENCY SCORE                 |
-|                      96.3 / 100                       |
+|                 5M IS ALREADY OPTIMAL                 |
+|            5M CACHE COSTS 28% LESS THAN 1H            |
 |                                                       |
-|                   certified optimal                   |
+|      Current 5m   ##############------   $123.00      |
+|      Same work 1h ####################   $171.00      |
+|                                                       |
+|        ~$96.00 LESS OVER THE ANALYZED 60 DAYS         |
 |              360.0M tokens - 80 sessions              |
-|              absorbed $834 of API-value               |
 +-------------------------------------------------------+
 
 GAP BREAKDOWN (cache-write tokens by re-warm gap)
@@ -300,12 +319,12 @@ CHECKUP
 
 +--- cache-refund --------------------------------------+
 |                                                       |
-|                 YOUR 1H CACHE RECEIPT                 |
-|       saved ~$2,500.95 in API-value (last 90d)        |
+|          1H CACHE USES 8% LESS OF YOUR LIMIT          |
 |                                                       |
-|             efficiency score: 98.5 / 100              |
-|              15.0B tokens - 590 sessions              |
-|             absorbed $33,866 of API-value             |
+|       Actual 1h       ##################--  92%       |
+|       Same work on 5m #################### 100%       |
+|                                                       |
+|           $12,089.62/mo API-value absorbed            |
 +-------------------------------------------------------+
 
 GAP BREAKDOWN (cache-write tokens by re-warm gap)
@@ -330,7 +349,7 @@ Caching saved you $33,866.02 USD-equivalent (API list rates) vs uncached this
 window.
 Subscription usage is metered at API-value rates - that's how a $-priced plan
 absorbs this much, and why your limits stretch as far as they do.
-Same work on a 5m cache: ~9% more of your usage limit. Uncached: ~3.0x.
+Your 1h cache uses ~8% less of your usage limit than 5m. Uncached: ~3.0x.
 1h already yours, verified in your transcripts: 99.5% of writes are 1h OK
 
 QUOTA-LEAK LIST ($-equivalent, API list rates - not a bill)

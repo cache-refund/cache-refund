@@ -288,27 +288,42 @@ describe("receipt ordering: counterfactual headline leads", () => {
   });
 });
 
-describe("score box is ending-aware", () => {
-  it("ending C's box leads with the spelled-out receipt figure; score is the second line", () => {
+describe("outcome box is ending-aware", () => {
+  it("API enable flow leads with money and labels the analyzed-window savings as historical", () => {
+    const ending = stripAnsi(renderEnding(fixtureEndingAEnable, "A-enable", makeInk(false), makeSym(true)).lines.join("\n"));
+    expect(ending).toContain("SAVE ~$80.00 / MONTH");
+    expect(ending).toContain("1H CACHE COSTS 32% LESS THAN 5M");
+    expect(ending).toContain("~$80.00 LESS OVER THE ANALYZED 30 DAYS");
+    expect(ending).not.toContain("recoverable ratio");
+    expect(ending).not.toContain("above the");
+  });
+
+  it("API 1h optimal card calls 5m the comparison, not the better option", () => {
+    const summary = { ...fixtureEndingAEnable, branch: "api-1h" as const };
+    const rendered = stripAnsi(numberBox(summary, makeInk(false), makeSym(true)));
+    expect(rendered).toContain("SAVE ~$80.00 / MONTH");
+    expect(rendered).toContain("1H CACHE COSTS 32% LESS THAN 5M");
+    expect(rendered).toContain("Current 1h");
+    expect(rendered).toContain("Same work 5m");
+    expect(rendered).not.toContain("Better 5m");
+    expect(rendered).not.toContain("YOUR 1H CACHE IS WORKING");
+  });
+
+  it("ending C normalizes the hypothetical 5m world to 100%", () => {
     const rendered = stripAnsi(numberBox(fixtureEndingCReceipt, makeInk(false), makeSym(true)));
-    expect(rendered).toContain("YOUR 1H CACHE RECEIPT");
-    expect(rendered).toContain("saved ~$2,500.95 in API-value (last 90d)");
-    expect(rendered).toContain("efficiency score: 98.5 / 100");
-    expect(rendered.indexOf("saved ~$2,500.95 in API-value")).toBeLessThan(rendered.indexOf("efficiency score"));
+    expect(rendered).toContain("1H CACHE USES 8% LESS OF YOUR LIMIT");
+    expect(rendered).toContain("Actual 1h");
+    expect(rendered).toContain("92%");
+    expect(rendered).toContain("Same work on 5m");
+    expect(rendered).toContain("100%");
+    expect(rendered).not.toContain("SAVE ~$");
     for (const line of rendered.split("\n")) {
       expect(line.length).toBe(boxWidth); // width law still holds for this shape
     }
   });
-  it("'certified optimal' is exclusively ending B's label", () => {
-    // B keeps it (both in its score box label and its certificate box)...
+  it("ending B headlines the already-optimal TTL", () => {
     const bBox = stripAnsi(numberBox(fixtureEndingBOptimal, makeInk(false), makeSym(true)));
-    expect(bBox).toContain("certified optimal");
-    // ...and it appears NOWHERE in a full C render, even at score 98.5.
-    const { lines } = renderFull(fixtureEndingCReceipt, NON_TTY);
-    expect(stripAnsi(lines.join("\n")).toLowerCase()).not.toContain("certified optimal");
-    // --compact and --md for C use the neutral high-score label instead.
-    expect(renderCompact(fixtureEndingCReceipt, NON_TTY)).toContain("(excellent)");
-    expect(renderMarkdown(fixtureEndingCReceipt)).not.toContain("certified optimal");
+    expect(bBox).toContain("5M IS ALREADY OPTIMAL");
   });
 });
 
@@ -335,10 +350,9 @@ describe("currency separation on shared surfaces", () => {
   it("subscriber: card and --compact qualify every $ figure (-eq or 'in API-value')", () => {
     for (const out of [renderCard(sub, NON_TTY), renderCompact(sub, NON_TTY)]) {
       const text = stripAnsi(out);
-      // A $ figure is qualified if suffixed -eq or followed by "in API-value".
-      const bare = (text.match(/\$[\d,]+\.\d{2}(?!-eq)(?! in API-value)/g)) ?? [];
+      const bare = (text.match(/\$[\d,]+\.\d{2}(?!-eq)(?!\/mo API-value)(?! in API-value)/g)) ?? [];
       expect(bare, `bare $ figures found: ${JSON.stringify(bare)}`).toEqual([]);
-      expect(text).toMatch(/\$[\d,]+\.\d{2}(-eq| in API-value)/);
+      expect(text).toMatch(/\$[\d,]+\.\d{2}(-eq|\/mo API-value| in API-value)/);
     }
   });
   it("subscriber: --md biggest-miss/worst-day match its own $-eq table header", () => {
@@ -555,8 +569,8 @@ describe("share templates (v1.0.2: plain English, percentage framing)", () => {
 });
 
 describe("scale line + card share hint (v1.0.1)", () => {
-  it("the box carries '<tokens> tokens · <sessions> sessions' for all endings", () => {
-    for (const s of [fixtureEndingAEnable, fixtureEndingBOptimal, fixtureEndingCReceipt]) {
+  it("API outcome boxes retain the analyzed scale line", () => {
+    for (const s of [fixtureEndingAEnable, fixtureEndingBOptimal]) {
       const rendered = stripAnsi(numberBox(s, makeInk(false), makeSym(true)));
       const total = s.tokens.creationTotal + s.tokens.readTotal;
       expect(rendered).toMatch(/[\d.]+[MBK]? tokens - [\d,]+ sessions/); // ASCII dot
@@ -593,11 +607,9 @@ describe("absorbedDollars / fmtAbsorbed (v1.0.2: the absorbed-value flex line)",
     expect(fmtAbsorbed(69617)).toBe("absorbed $69,617 of API-value");
     expect(fmtAbsorbed(69617, true)).toBe("absorbed $69,617 API-value");
   });
-  it("the box carries the long form for every ending, on a positive fixture", () => {
-    for (const s of [fixtureEndingAEnable, fixtureEndingBOptimal, fixtureEndingCReceipt]) {
-      const rendered = stripAnsi(numberBox(s, makeInk(false), makeSym(true)));
-      expect(rendered).toContain(fmtAbsorbed(absorbedDollars(s)!));
-    }
+  it("the subscription box carries monthly API-value context", () => {
+    const rendered = stripAnsi(numberBox(fixtureEndingCReceipt, makeInk(false), makeSym(true)));
+    expect(rendered).toContain("/mo API-value absorbed");
   });
   it("the box OMITS the line entirely for the negative-delta fixtures — no line, not a negative one", () => {
     for (const s of [fixtureNegativeCachingSavings, fixtureNegativeCachingSavingsEndingB]) {
@@ -620,8 +632,7 @@ describe("absorbedDollars / fmtAbsorbed (v1.0.2: the absorbed-value flex line)",
     for (const line of rendered.split("\n")) {
       expect(line.length).toBe(boxWidth);
     }
-    expect(rendered).toContain(fmtAbsorbed(absorbed!, true));
-    expect(rendered).not.toContain(fmtAbsorbed(absorbed!, false));
+    expect(rendered).toContain("/mo API-value absorbed");
   });
 });
 
@@ -647,14 +658,14 @@ describe("subscriber paradox explainer (v1.0.2, ending C only)", () => {
 });
 
 describe("limitMultiples / limitStretchLine (v1.0.3, subscription limit framing)", () => {
-  it("subscription: multiples derive from cost5m/actual and uncached/actual (metering-agnostic ratios)", () => {
+  it("subscription: savings derive from 1 - actual/cost5m and uncached/actual (metering-agnostic ratios)", () => {
     const m = limitMultiples(fixtureEndingCReceipt);
-    // cost5m 18121.67 / actual 16645.73 = 1.0887 -> ~9% more; uncached/actual ~3.0x
+    // 1 - actual 16645.73 / cost5m 18121.67 = 8.1% less; uncached/actual ~3.0x
     expect(m).not.toBeNull();
-    expect(m!.pct5m).toBe(9);
+    expect(m!.pctSavedVs5m).toBe(8);
     expect(m!.xUncached).toBeGreaterThan(1);
     expect(limitStretchLine(fixtureEndingCReceipt)).toBe(
-      `Same work on a 5m cache: ~9% more of your usage limit. Uncached: ~${m!.xUncached.toFixed(1)}x.`,
+      `Your 1h cache uses ~8% less of your usage limit than 5m. Uncached: ~${m!.xUncached.toFixed(1)}x.`,
     );
   });
   it("non-subscription branches -> null (the limit is a subscriber concept)", () => {
@@ -698,14 +709,12 @@ describe("planMultiplierLine / --plan (v1.0.2)", () => {
     const { lines } = renderFull(fixtureEndingAEnable, { tty: false, planPrice: 200 });
     expect(stripAnsi(lines.join("\n"))).not.toContain("your monthly plan");
   });
-  it("box row order: scale line, then absorbed, then the plan multiplier", () => {
+  it("box row order: absorbed value, then plan multiplier", () => {
     const rendered = stripAnsi(numberBox(fixtureEndingCReceipt, makeInk(false), makeSym(true), 2000));
     const rows = rendered.split("\n");
-    const iScale = rows.findIndex((l) => l.includes("tokens") && l.includes("sessions"));
-    const iAbsorbed = rows.findIndex((l) => l.includes("absorbed $"));
+    const iAbsorbed = rows.findIndex((l) => l.includes("API-value absorbed"));
     const iPlan = rows.findIndex((l) => l.includes("your monthly plan"));
-    expect(iScale).toBeGreaterThan(-1);
-    expect(iAbsorbed).toBeGreaterThan(iScale);
+    expect(iAbsorbed).toBeGreaterThan(-1);
     expect(iPlan).toBeGreaterThan(iAbsorbed);
   });
   it("width law holds with the --plan line engaged (subscription fixture)", () => {

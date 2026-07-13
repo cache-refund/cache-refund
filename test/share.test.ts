@@ -23,8 +23,8 @@ import {
   imageClipboardCommandsFor,
   noShareEnvSet,
   openCommandFor,
+  runLinkedInShare,
   runShareAccept,
-  SHARE_PROMPT_LINE,
   xIntentUrl,
   type ShareAcceptDeps,
   type SpawnLike,
@@ -43,11 +43,29 @@ describe("share intent URLs", () => {
     expect(url.startsWith("https://bsky.app/intent/compose?text=")).toBe(true);
     expect(url).not.toContain(" ");
   });
-  it("prompt line offers x/b/c and Enter-to-skip", () => {
-    expect(SHARE_PROMPT_LINE).toContain("[x]");
-    expect(SHARE_PROMPT_LINE).toContain("[b]");
-    expect(SHARE_PROMPT_LINE).toContain("[c]");
-    expect(SHARE_PROMPT_LINE.toLowerCase()).toContain("skip");
+});
+
+describe("LinkedIn share workflow", () => {
+  it("copies post text, reveals the card, explains the blank composer, then opens LinkedIn", async () => {
+    const calls: string[] = [];
+    await runLinkedInShare("prepared post", "/tmp/card.png", {
+      copyToClipboard: async (text) => {
+        calls.push(`copy:${text}`);
+        return true;
+      },
+      revealFile: (path) => calls.push(`reveal:${path}`),
+      openExternal: async (url) => {
+        calls.push(`open:${url}`);
+        return true;
+      },
+      write: (text) => calls.push(`write:${text}`),
+    });
+    expect(calls).toEqual([
+      "copy:prepared post",
+      "reveal:/tmp/card.png",
+      "write:LinkedIn does not support prefilled post text — text copied to clipboard. Paste it, then attach the card image:\n/tmp/card.png\n",
+      "open:https://www.linkedin.com/feed/?shareActive=true",
+    ]);
   });
 });
 

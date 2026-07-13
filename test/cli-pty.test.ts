@@ -49,7 +49,6 @@ import { tmpdir, userInfo } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
-import { SHARE_PROMPT_LINE } from "../src/share.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CLI = join(HERE, "..", "dist", "cli.js");
@@ -202,8 +201,8 @@ function runCheckupOnPty(
   return { ...parsed, stripped };
 }
 
-maybe("interactive checkup on a real pty (closing card + share prompt)", () => {
-  it("the score box appears exactly once, as the closing card after the ending", () => {
+maybe("interactive checkup on a real pty (outcome card + final menu)", () => {
+  it("the outcome card appears exactly once immediately before the final menu", () => {
     const home = seedHome();
     const r = runCheckupOnPty(home, []);
 
@@ -221,30 +220,34 @@ maybe("interactive checkup on a real pty (closing card + share prompt)", () => {
     const checkupIdx = stripped.indexOf("CHECKUP");
     const receiptIdx = stripped.indexOf("YOUR RECEIPT");
     const boxIdx = stripped.indexOf("╭");
-    const shareIdx = stripped.indexOf("[Enter] skip");
+    const menuIdx = stripped.indexOf("Ready to share");
     expect(checkupIdx).toBeGreaterThanOrEqual(0);
     expect(receiptIdx).toBeGreaterThanOrEqual(0);
     expect(boxIdx).toBeGreaterThanOrEqual(0);
-    expect(shareIdx).toBeGreaterThanOrEqual(0);
+    expect(menuIdx).toBeGreaterThanOrEqual(0);
 
-    // Ordering chain: CHECKUP header, then the receipt ending, then the
-    // closing card, then (only after the card) the share prompt.
+    const reportIdx = stripped.indexOf("Detailed report saved to");
+    expect(reportIdx).toBeGreaterThanOrEqual(0);
+
+    // Ordering chain: CHECKUP, receipt prose, saved report, one outcome card,
+    // then immediately the raw-key action menu.
     expect(checkupIdx).toBeLessThan(receiptIdx);
-    expect(receiptIdx).toBeLessThan(boxIdx);
-    expect(boxIdx).toBeLessThan(shareIdx);
+    expect(receiptIdx).toBeLessThan(reportIdx);
+    expect(reportIdx).toBeLessThan(boxIdx);
+    expect(boxIdx).toBeLessThan(menuIdx);
+    expect(stripped.slice(boxIdx, menuIdx)).not.toContain("YOUR RECEIPT");
 
     // The box itself is the receipt card, not some other box.
-    expect(stripped.includes("YOUR 1H CACHE RECEIPT")).toBe(true);
-    expect(stripped.indexOf("YOUR 1H CACHE RECEIPT")).toBeGreaterThan(receiptIdx);
+    expect(stripped).toContain("1H CACHE USES");
+    expect(stripped).toContain("LESS OF YOUR LIMIT");
 
     // Nothing re-opens the CHECKUP section once the closing card has printed.
     expect(stripped.slice(boxIdx).includes("CHECKUP")).toBe(false);
 
-    // The skip path (auto-answered bare Enter) leaves the door visible.
-    expect(stripped).toContain("share anytime: npx cache-refund share");
+    expect((stripped.match(/Ready to share/g) ?? []).length).toBe(1);
   });
 
-  it("the share prompt fires on every interactive checkup, not once per machine", () => {
+  it("the final menu appears on every interactive checkup, not once per machine", () => {
     const home = seedHome();
     const first = runCheckupOnPty(home, []);
     const second = runCheckupOnPty(home, []);
@@ -253,8 +256,8 @@ maybe("interactive checkup on a real pty (closing card + share prompt)", () => {
     // behind by the first run must not silence the second. (.trim(): the
     // product string ends with a trailing space that pty line-discipline
     // may or may not preserve at a line boundary.)
-    expect(first.stripped).toContain(SHARE_PROMPT_LINE.trim());
-    expect(second.stripped).toContain(SHARE_PROMPT_LINE.trim());
+    expect(first.stripped).toContain("Ready to share — press Enter to copy the card image");
+    expect(second.stripped).toContain("Ready to share — press Enter to copy the card image");
   });
 
   it("--no-share suppresses the share prompt entirely (no prompt, no hint)", () => {
@@ -263,8 +266,7 @@ maybe("interactive checkup on a real pty (closing card + share prompt)", () => {
 
     expect(r.exit).toBe(0);
     expect(r.timedOut).toBe(false);
-    expect(r.stripped).not.toContain(SHARE_PROMPT_LINE.trim());
-    expect(r.stripped).not.toContain("share anytime");
+    expect(r.stripped).not.toContain("Ready to share");
     // Suppression must not eat the closing card.
     expect((r.stripped.match(/╭/g) ?? []).length).toBe(1);
   });
@@ -275,8 +277,7 @@ maybe("interactive checkup on a real pty (closing card + share prompt)", () => {
 
     expect(r.exit).toBe(0);
     expect(r.timedOut).toBe(false);
-    expect(r.stripped).not.toContain(SHARE_PROMPT_LINE.trim());
-    expect(r.stripped).not.toContain("share anytime");
+    expect(r.stripped).not.toContain("Ready to share");
     expect((r.stripped.match(/╭/g) ?? []).length).toBe(1);
   });
 });

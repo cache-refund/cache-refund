@@ -34,9 +34,6 @@ export type SpawnLike = (
   unref?(): void;
 };
 
-export const SHARE_PROMPT_LINE =
-  "share this? [x] post to X · [b] Bluesky · [c] copy to clipboard · [Enter] skip ";
-
 /**
  * `--no-share` / `CACHE_REFUND_NO_SHARE` suppression (v1.0.2): the share
  * prompt now fires on every interactive checkup end (no more once-per-machine
@@ -56,6 +53,8 @@ export function xIntentUrl(text: string): string {
 export function bskyIntentUrl(text: string): string {
   return `https://bsky.app/intent/compose?text=${encodeURIComponent(text)}`;
 }
+
+export const LINKEDIN_COMPOSE_URL = "https://www.linkedin.com/feed/?shareActive=true";
 
 /** Platform's browser-open command + args for a URL. Exported for tests. */
 export function openCommandFor(url: string, platform: NodeJS.Platform): { cmd: string; args: string[] } {
@@ -253,6 +252,27 @@ export async function copyImageToClipboard(
     if (await runImageClipboardCommand(path, command, spawnFn, readFileFn)) return true;
   }
   return false;
+}
+
+export interface LinkedInShareDeps {
+  copyToClipboard: (text: string) => Promise<boolean>;
+  revealFile: (path: string) => void;
+  openExternal: (url: string) => Promise<boolean>;
+  write: (text: string) => void;
+}
+
+/** LinkedIn does not reliably accept prefilled post text in its web composer. */
+export async function runLinkedInShare(text: string, imagePath: string, deps: LinkedInShareDeps): Promise<void> {
+  const copied = await deps.copyToClipboard(text);
+  deps.revealFile(imagePath);
+  deps.write(
+    copied
+      ? `LinkedIn does not support prefilled post text — text copied to clipboard. Paste it, then attach the card image:\n${imagePath}\n`
+      : `LinkedIn does not support prefilled post text — copy the share text from the report, then attach the card image:\n${imagePath}\n`,
+  );
+  if (!(await deps.openExternal(LINKEDIN_COMPOSE_URL))) {
+    deps.write(`couldn't launch a browser — open this yourself:\n${LINKEDIN_COMPOSE_URL}\n`);
+  }
 }
 
 // ------------------------------------------------------- share-accept order

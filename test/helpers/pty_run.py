@@ -60,7 +60,8 @@ ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 # chunk boundary), mapped to the reply that answers it "no"/"skip" so a
 # fully-automated run never blocks on human input.
 PROMPT_REPLIES = (
-    ("[Enter] skip", "\n"),  # the share CTA: bare Enter = skip, no nag
+    ("[q/Esc] Finish without copying", "q"),  # raw-key final menu: quit immediately
+    ("[Y/n]", "\n"),  # savings recommendation: Enter accepts the default
     ("[y/N]", "n\n"),  # enable/revert consent: default answer is "no"
     ("[s/a]", "s\n"),  # branch-ambiguity question: pick (s)ubscription
 )

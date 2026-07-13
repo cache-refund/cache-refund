@@ -25,13 +25,13 @@ ships as a Claude Code plugin — see [Use it inside Claude Code](#use-it-inside
 Zero runtime dependencies, too — the entire tool is one `tsc`-compiled TypeScript
 CLI, nothing to audit but the code itself.
 
-- **API-billed, still on the 5-minute default?** The recommender: "you left ~$X
-  on the table over the last 90 days — one line recovers it. Claim your cache
-  refund? [y/N]"
+- **API-billed, still on the 5-minute default?** The recommender leads with the
+  projected monthly saving and asks once: "Switch to the 1-hour cache and save
+  about $X/month? [Y/n]"
 - **API-billed, already on the 1-hour TTL?** The validator: confirms 1h is still
   winning, or tells you to revert if your pattern shifted back toward 5m.
-- **On a subscription?** The receipt: what your (already-automatic) 1h cache
-  saved you, plus a leak table for what's still eating your quota.
+- **On a subscription?** The receipt: how much less of your usage limit the 1h
+  cache uses than 5m, plus API-value context and the remaining quota leaks.
 
 Below the break-even on any branch, you get **"Certified optimal"** instead of a
 nag — that's also a screenshot worth sharing.
@@ -73,9 +73,12 @@ For an API user whom the math tells to switch:
 npx cache-refund enable     # adds ENABLE_PROMPT_CACHING_1H=1 to ~/.claude/settings.json
 ```
 
-This is the **only** thing `cache-refund` ever writes, it asks first (unless you
-pass `--yes`), it backs up `settings.json` before touching it, and it preserves
-every other key. `npx cache-refund revert` undoes it.
+Settings changes still require confirmation (unless you pass `--yes`), back up
+`settings.json`, and preserve every other key. The analyzer also saves one
+content-free Markdown report per successful run under
+`~/.claude/cache-refund/reports/`; reports contain aggregate counts, timestamps,
+TTL evidence, calculations, and leak rows — never prompts or conversation text.
+`npx cache-refund revert` undoes the settings change.
 
 The env flag only applies to **sessions started after the change**, and Claude
 Code has had intermittent flakiness landing it
@@ -128,7 +131,7 @@ Then just ask — "am I leaking money on cache?" or "run cache-refund" — and t
 agent runs the analyzer, narrates the number, the gap breakdown, and the
 verdict in plain language. It never edits `settings.json` on your behalf: it
 only ever surfaces the `enable`/`revert` command and asks you to run it — the
-tool's own confirmation prompt is the only write path, same as the CLI.
+settings changes still go through the tool's own confirmation prompt, same as the CLI.
 
 ## Share your card
 
@@ -151,9 +154,9 @@ npx cache-refund --explain  # every formula, your numbers substituted (METHODOLO
 
 Flags: `--days N` (default 90) · `--project <path>` (default: all projects) ·
 `--price <model=$/MTok,...>` (override pricing) · `--yes` / `-y` (skip confirm) ·
-`--no-color` · `--all-time` · `--no-share` (silence the share prompt; same as
+`--no-color` · `--all-time` · `--no-share` (silence card generation and the final action menu; same as
 env `CACHE_REFUND_NO_SHARE=1`) · `--plan <usd>` (monthly subscription price;
-subscription branch only — turns the receipt into a multiple of that price).
+subscription branch only — overrides an automatically recognized plan price).
 Exit codes: `0` ok · `1` no transcripts found · `2` parse/usage/internal error.
 
 ## FAQ
@@ -164,8 +167,10 @@ automatically; `cache-refund` shows you what it saved you and where your quota i
 still leaking (model switches, cold starts). Dollar figures are labeled
 `$-equivalent (API list rates)` because the subscription quota formula is
 undisclosed — we price your tokens at API list rates so the number is *anchored
-and reproducible*, but it is not a bill. The `--plan <usd>` flag turns the
-receipt into a multiple of your subscription price.
+and reproducible*, but it is not a bill. When Claude Code's local account cache
+contains a recognized Max tier, `cache-refund` reads only the billing/tier fields
+(never name, email, or account IDs) and shows the known plan framing. Unknown or
+stale tiers stay price-free. `--plan <usd>` remains a manual override.
 
 **Does it work on Bedrock / Vertex?**
 Yes. `ENABLE_PROMPT_CACHING_1H` is an API/Bedrock/Vertex/Foundry feature, so the
@@ -192,13 +197,12 @@ can legitimately be $0 when the tail write cancels the saving. Zero rows are
 honest, not missing data.
 
 **Does sharing phone home?**
-No. The CLI itself makes zero network requests, sharing included. The optional
-share prompt (interactive terminal runs only) opens *your own browser* with a
-prefilled post — text you read, and can edit or abandon, before anything is
-sent — or copies the markdown block (or the generated card image) to your
-local clipboard. Nothing is transmitted by `cache-refund`, ever. The prompt
-appears at the end of every interactive run; Enter skips it, and `--no-share`
-(or env `CACHE_REFUND_NO_SHARE=1`) silences it entirely, every time.
+No. The CLI itself makes zero network requests, sharing included. At the end of
+an interactive run it generates the terminal-style card locally and shows one
+single-key menu: Enter copies the image, `r` copies the detailed report, platform
+keys open your own browser, and `q`/Escape exits. Nothing is transmitted by
+`cache-refund`, ever. `--no-share` (or `CACHE_REFUND_NO_SHARE=1`) suppresses the
+image/menu while the aggregate report is still saved.
 
 **I think a number is wrong.**
 That is the highest-priority kind of bug report. Open a
