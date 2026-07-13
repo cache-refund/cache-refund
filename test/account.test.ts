@@ -65,6 +65,15 @@ describe("readAccountPlan", () => {
     expect(readAccountPlan(home, now)).toMatchObject({ kind: "stale", monthlyUsd: null });
   });
 
+  it("does not treat a lone rate-limit tier as a subscription", () => {
+    // claude.ai sets userRateLimitTier for every logged-in user, including
+    // free and API-billed users. A tier alone must NOT classify them as a
+    // subscriber (regression: that misclassification suppressed the 1h
+    // enable/verify/recheck actions in detectBranch).
+    const home = homeWithAccount({ userRateLimitTier: "default_pro", profileFetchedAt: now.getTime() });
+    expect(readAccountPlan(home, now).kind).toBe("unavailable");
+  });
+
   it("returns unavailable for missing or malformed metadata", () => {
     const home = mkdtempSync(join(tmpdir(), "cache-refund-account-"));
     expect(readAccountPlan(home, now).kind).toBe("unavailable");

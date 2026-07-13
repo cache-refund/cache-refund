@@ -52,7 +52,14 @@ export function readAccountPlan(home: string, now: Date = new Date()): AccountPl
     return { kind: "recognized", name: "Max 5x", monthlyUsd: 100, fresh: true, evidence };
   }
 
-  const isSubscription = /subscription/i.test(billingType ?? "") || organizationType !== null || tier !== null;
+  // A mere rate-limit tier (userRateLimitTier/organizationRateLimitTier/seatTier)
+  // is NOT proof of a paid subscription: claude.ai sets a tier for every logged-in
+  // user, including free/API users. Treating it as a subscription misclassifies
+  // API-billed and free users as subscribers in detectBranch (see verdict.ts),
+  // which then suppresses the 1h enable/verify/recheck actions and shows the
+  // subscriber receipt. Only a subscription billing type or a recognized
+  // organization indicates a real subscription.
+  const isSubscription = /subscription/i.test(billingType ?? "") || organizationType !== null;
   if (isSubscription) {
     return { kind: "subscription", name: organizationType ?? "Claude subscription", monthlyUsd: null, fresh: true, evidence };
   }
