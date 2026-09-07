@@ -20,6 +20,8 @@ export interface RunOptions {
   jsonMode?: boolean;
   overrides?: Record<string, number>;
   home?: string;
+  /** Exact lower timestamp bound for post-change verification (epoch seconds). */
+  sinceTs?: number;
   /** See verdict.ts BuildSummaryInput.branchOverride. */
   branchOverride?: Branch;
   /** See verdict.ts BuildSummaryInput.branchOverrideSource. */
@@ -50,7 +52,8 @@ export async function run(opts: RunOptions): Promise<RunResult> {
 
   const allTime = opts.allTime === true;
   const days = allTime ? null : opts.days ?? null;
-  const cutoff = days != null ? Date.now() / 1000 - days * 86400 : null;
+  const daysCutoff = days != null ? Date.now() / 1000 - days * 86400 : null;
+  const cutoff = opts.sinceTs === undefined ? daysCutoff : Math.max(opts.sinceTs, daysCutoff ?? -Infinity);
 
   const seenIds = new Set<string>();
   const events: TurnEvent[] = [];

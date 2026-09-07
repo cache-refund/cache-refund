@@ -8,6 +8,7 @@
  *   npx cache-refund revert          confirmed 5m-TTL revert flow
  *   npx cache-refund verify          post-enable TTL check
  *   npx cache-refund recheck         baseline comparison
+ *   npx cache-refund watch           one-shot TTL regression alarm
  *
  *   --days N (90) · --project <path> · --price <model=$/MTok,...> · --yes ·
  *   --no-color · --all-time · --json · --md · --slack · --compact · --explain ·
@@ -27,7 +28,8 @@
  * endings without needing three different machines. See CONTRIBUTING.md's
  * "Previewing the other endings" and verdict.ts's BuildSummaryInput.branchOverride.
  *
- * Exit codes: 0 ok · 1 no transcripts found · 2 parse/usage/internal error.
+ * Exit codes: 0 ok · 1 no transcripts found · 2 parse/usage/internal error ·
+ * 3 watchdog detected a TTL regression.
  * `--json` never prompts.
  *
  * TTY-ness is decided ONCE, here, up front, and threaded through every
@@ -42,7 +44,8 @@ import { homedir } from "node:os";
 import { pathToFileURL } from "node:url";
 import { run } from "./pipeline.js";
 import { parsePriceOverride } from "./pricing.js";
-import { applyEnable, applyRevert, runRecheck, runVerify } from "./actions.js";
+import { applyEnable, applyRevert, applySubagentTtl, runRecheck, runVerify, runSubagentVerify } from "./actions.js";
+import { renderSubagents } from "./subagents.js";
 import {
   bskyIntentUrl,
   copyImageToClipboard,
@@ -55,6 +58,7 @@ import {
 } from "./share.js";
 import { writeCardImage } from "./cardimage.js";
 import { readAccountPlan } from "./account.js";
+import { runWatchOnce } from "./watch.js";
 import { parseConfirmation } from "./consent.js";
 import { readFinalActionKey } from "./keymenu.js";
 import { detailedReportMarkdown, writeDetailedReport, type ReportWriteResult } from "./report.js";
@@ -79,9 +83,10 @@ import type { Branch, Summary } from "./types.js";
 
 // ------------------------------------------------------------------ argv
 
-type Subcommand = "checkup" | "card" | "enable" | "revert" | "verify" | "recheck" | "share";
+type Subcommand = "checkup" | "card" | "enable" | "revert" | "verify" | "recheck" | "watch" | "share";
 
 interface Args {
+  subagents: boolean;
   subcommand: Subcommand;
   days: number | null;
   allTime: boolean;
@@ -131,7 +136,7 @@ interface Args {
   branchOverride?: Branch;
 }
 
-const SUBCOMMANDS = new Set<Subcommand>(["card", "enable", "revert", "verify", "recheck", "share"]);
+const SUBCOMMANDS = new Set<Subcommand>(["card", "enable", "revert", "verify", "recheck", "watch", "share"]);
 const BRANCH_OVERRIDE_VALUES: ReadonlySet<Branch> = new Set(["api-5m", "api-1h", "subscription"]);
 
 /**
@@ -155,9 +160,15 @@ Usage
   npx cache-refund revert          confirmed 5m-TTL revert flow
   npx cache-refund verify          post-enable TTL check
   npx cache-refund recheck         baseline comparison
+  npx cache-refund watch           alarm if a working 1h TTL falls back to 5m
+  npx cache-refund subagents       child-only cache observations (also --subagents)
+  npx cache-refund enable --subagents   request 1h for subagents/helpers
+  npx cache-refund revert --subagents   set subagents/helpers to 5m
+  npx cache-refund verify --subagents   check fresh child TTL evidence
 
 Flags
   --days <n>                 analysis window in days (default 90)
+  --subagents                scope checkup, enable, revert or verify to subagents
   --all-time                 the whole corpus, ignoring --days
   --project <path>           one project directory only
   --price <model=$/MTok,...> per-model price overrides
@@ -174,11 +185,12 @@ Flags
   --version                  print the version and exit
   --help                     this
 
-Exit codes: 0 ok, 1 no transcripts found, 2 parse/internal error
+Exit codes: 0 ok, 1 no transcripts found, 2 parse/internal error, 3 TTL regression
 `;
 
 function parseArgs(argv: string[]): Args {
   const args: Args = {
+    subagents: false,
     subcommand: "checkup",
     days: 90,
     allTime: false,
@@ -194,11 +206,18 @@ function parseArgs(argv: string[]): Args {
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
+    if (i === 0 && a === "subagents") {
+      args.subagents = true;
+      continue;
+    }
     if (i === 0 && !a.startsWith("-") && SUBCOMMANDS.has(a as Subcommand)) {
       args.subcommand = a as Subcommand;
       continue;
     }
     switch (a) {
+      case "--subagents":
+        args.subagents = true;
+        break;
       case "--json":
         args.json = true;
         break;
@@ -268,6 +287,9 @@ function parseArgs(argv: string[]): Args {
         // shouldn't crash on a typo'd flag; --json output is still valid.
         break;
     }
+  }
+  if (args.subagents && (!["checkup", "enable", "revert", "verify"].includes(args.subcommand) || args.explain)) {
+    throw new UsageError("--subagents supports checkup, enable, revert and verify; no scoped watch, recheck or cost simulator is available.");
   }
   return args;
 }
@@ -441,6 +463,22 @@ async function main(): Promise<number> {
     return await runStandaloneAction(args);
   }
 
+  if (!args.json && args.subagents && args.subcommand === "verify") {
+    const result = await runSubagentVerify({ home: homedir() });
+    process.stdout.write(result.message.join("\n") + "\n");
+    return result.exitCode ?? 0;
+  }
+
+  // A watch invocation is deliberately one-shot and scheduler-friendly. It
+  // performs its own recent one-day scan and persists only content-free TTL
+  // state, so route it before the normal 90-day checkup pipeline. As with all
+  // commands, --json keeps its existing read-only Summary behavior below.
+  if (!args.json && args.subcommand === "watch") {
+    const result = await runWatchOnce({ home: homedir() });
+    process.stdout.write(result.message.join("\n") + "\n");
+    return result.exitCode;
+  }
+
   // Live in-place scan counter (TTY checkup only), fed by pipeline.ts's
   // additive onFileParsed hook (v1.0.1 — replaces the old one-shot
   // "scanning 0/1" line that stayed stuck above the CHECKUP section).
@@ -449,7 +487,7 @@ async function main(): Promise<number> {
   // final counts, and nothing above the progress line is ever touched
   // (no-screen-clear law).
   let progress: ReturnType<typeof makeScanProgress> | null = null;
-  if (tty && args.subcommand === "checkup") {
+  if (tty && args.subcommand === "checkup" && !args.subagents) {
     process.stdout.write(trustLine(ink, sym) + "\n");
     progress = makeScanProgress(pickLoadingPun(), ink, sym);
     const first = progress.frame(0, 0);
@@ -492,6 +530,15 @@ async function main(): Promise<number> {
   }
 
   let summary = baseResult.summary;
+
+  // Child diagnostics use observed tokens, so unknown billing never blocks them.
+  if (args.subagents && !args.json && summary.subagents) {
+    const lines = renderSubagents(summary.subagents);
+    const markdown = "### " + lines.join("\n\n");
+    process.stdout.write((args.md ? markdown : lines.join("\n")) + "\n");
+    writeDetailedReport(summary, { home: homedir(), markdown });
+    return 0;
+  }
 
   if (summary.branch === "ambiguous") {
     if (args.json) {
@@ -623,6 +670,9 @@ async function renderCheckup(
   const kind = decideEnding(summary);
   const ending = renderEnding(summary, kind, ink, sym, opts.planPrice);
   process.stdout.write("\n" + ending.lines.join("\n") + "\n");
+  if (summary.subagents && summary.subagents.turns > 0) {
+    process.stdout.write("\n" + renderSubagents(summary.subagents).join("\n") + "\n");
+  }
 
   const code = await maybeConsentFromEnding(args, summary, ending.needsConsent, ending.consentVerb);
   const report = writeDetailedReport(summary, { home: homedir(), markdown: reportMarkdown(summary) });
@@ -664,7 +714,9 @@ function sleep(ms: number): Promise<void> {
 async function runStandaloneAction(args: Args): Promise<number> {
   const verb: "enable" | "revert" = args.subcommand === "enable" ? "enable" : "revert";
   const interactive = process.stdout.isTTY && !process.env.CI;
-  const verbLabel = verb === "enable" ? "Switch to the 1-hour cache" : "Revert to the 5-minute cache";
+  const verbLabel = args.subagents
+    ? `Set subagents and helper requests to ${verb === "enable" ? "1-hour" : "5-minute"} cache (Claude Code 2.1.242+)`
+    : verb === "enable" ? "Switch to the 1-hour cache" : "Revert to the 5-minute cache";
 
   let confirmed = args.yes;
   if (!confirmed && interactive) {
@@ -674,9 +726,15 @@ async function runStandaloneAction(args: Args): Promise<number> {
     process.stdout.write(
       interactive
         ? "Nothing changed.\n"
-        : `(non-interactive: pass --yes to apply: \`cache-refund ${verb} --yes\`)\n`,
+        : `(non-interactive: pass --yes to apply: \`cache-refund ${verb}${args.subagents ? " --subagents" : ""} --yes\`)\n`,
     );
     return 0;
+  }
+
+  if (args.subagents) {
+    const result = applySubagentTtl({ home: homedir() }, verb === "enable" ? "1h" : "5m");
+    process.stdout.write(result.message.join("\n") + "\n");
+    return result.exitCode ?? 0;
   }
 
   if (verb === "revert") {

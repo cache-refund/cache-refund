@@ -61,6 +61,8 @@ export interface ActionOpts {
 }
 
 export interface ActionResult {
+  /** Scoped actions fail explicitly when a setting cannot be applied safely. */
+  exitCode?: 0 | 2;
   /** true if a real write happened. */
   applied: boolean;
   /** Lines to print to the user. */
@@ -256,6 +258,92 @@ function envDiffLines(before: Record<string, unknown>, after: Record<string, unk
     else lines.push(`  ~ "${k}": ${JSON.stringify(b)} -> ${JSON.stringify(a)}`);
   }
   return lines;
+}
+
+const SUBAGENT_SETTING = "subagentPromptCacheTtl";
+const SUBAGENT_ENV = "CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL";
+const subagentChangePath = (home: string) => join(home, ".claude", "cache-refund", "subagent-ttl-change.json");
+
+/** Confirmed caller only. The global/main TTL and unrelated settings are preserved. */
+export function applySubagentTtl(opts: ActionOpts, ttl: "5m" | "1h"): ActionResult {
+  const { doc, existed, parseError } = readSettings(opts.home);
+  if (parseError) return { applied: false, exitCode: 2, message: [parseError] };
+  const env = opts.env ?? process.env;
+  const before = doc ?? {};
+  const settingEnv = (before.env ?? {}) as Record<string, unknown>;
+  const conflicts = [env[SUBAGENT_ENV], settingEnv[SUBAGENT_ENV]];
+  if ((ttl === "1h" && force5mIsSet(doc, env)) ||
+      conflicts.some(v => (v === "5m" || v === "1h") && v !== ttl)) {
+    return { applied: false, exitCode: 2, message: [
+      `cache-refund: cannot set subagents to ${ttl}; a higher-priority environment control conflicts.`,
+      `Check ${SUBAGENT_ENV} and ${FORCE_5M_KEY} in your shell and settings.json env block.`,
+      "Settings were not modified.",
+    ] };
+  }
+  if (before[SUBAGENT_SETTING] === ttl) return { applied: false, exitCode: 0, message: [
+    `cache-refund: ${SUBAGENT_SETTING} is already ${ttl}.`,
+    "Run `cache-refund verify --subagents` to check actual delivery.",
+  ] };
+  if (existed) writeBackup(opts.home, readFileSync(settingsPath(opts.home), "utf8"));
+  const statePath = subagentChangePath(opts.home);
+  mkdirSync(join(opts.home, ".claude", "cache-refund"), { recursive: true, mode: 0o700 });
+  // Record the request boundary before changing settings. If this write fails,
+  // settings remain intact; if the later write fails, this is still the last request.
+  atomicWriteFileSync(statePath, serialize({ changedAt: new Date().toISOString(), ttl }));
+  atomicWriteFileSync(settingsPath(opts.home), serialize({ ...before, [SUBAGENT_SETTING]: ttl }));
+  return { applied: true, exitCode: 0, message: [
+    `cache-refund: set subagent cache TTL to ${ttl}.`,
+    ...envDiffLines(before, { ...before, [SUBAGENT_SETTING]: ttl }),
+    `Settings: ${settingsPath(opts.home)}${existed ? ` (backup: ${backupPath(opts.home)})` : ""}.`,
+    "Requires Claude Code 2.1.242+. Applies to subagents and other requests outside the main conversation,",
+    "including helpers and workflows. Available during included subscription usage and API billing.",
+    "Start a fresh Claude Code session, run a subagent, then: cache-refund verify --subagents",
+    "Other settings scopes may override this value; verification checks delivered TTL.",
+    ttl === "1h" ? "To set subagents back to 5m: cache-refund revert --subagents" :
+      "To request 1h again: cache-refund enable --subagents",
+    "Subscription quota savings have not been established by changing this setting.",
+  ] };
+}
+
+/** Verify fresh child usage only; parent writes cannot certify child delivery. */
+export async function runSubagentVerify(opts: ActionOpts): Promise<ActionResult> {
+  let sinceTs: number | undefined;
+  let target: "5m" | "1h" | undefined;
+  const statePath = subagentChangePath(opts.home);
+  if (existsSync(statePath)) {
+    try {
+      const state = JSON.parse(readFileSync(statePath, "utf8"));
+      if (!state || typeof state.changedAt !== "string" || !Number.isFinite(Date.parse(state.changedAt)) ||
+          (state.ttl !== "5m" && state.ttl !== "1h")) throw new Error("Invalid state");
+      sinceTs = Date.parse(state.changedAt) / 1000;
+      target = state.ttl;
+    } catch {
+      return { applied: false, exitCode: 2, message: [
+        `cache-refund: cannot read the subagent change record at ${statePath}; verification was not attempted.`,
+      ] };
+    }
+  }
+  const result = await run({ home: opts.home, days: 1, sinceTs, jsonMode: true });
+  const recent = result.summary?.subagents?.recent;
+  const prefix = "cache-refund verify --subagents";
+  if (!recent || recent.ttl === "none") return { applied: false, message: [
+    `${prefix}: no fresh subagent cache writes.`,
+    "Start a new session and run a subagent, then check again.",
+    "The check covers the last 24h, after the last scoped change when available.",
+  ] };
+  const counts = `${fmtInt(recent.creation5m)} tokens at 5m; ${fmtInt(recent.creation1h)} at 1h; ${fmtInt(recent.creationUnknown)} with unknown TTL.`;
+  if (recent.ttl === "mixed" || recent.ttl === "unknown") return { applied: false, message: [
+    `${prefix}: ${recent.ttl} TTL evidence.`, counts,
+    "No uniform TTL can be confirmed. Check overrides and run fresh subagents.",
+  ] };
+  const matches = target === undefined || target === recent.ttl;
+  return { applied: false, message: [
+    `${prefix}: ${matches ? "verified " : ""}received ${recent.ttl}${target ? ` (requested ${target})` : ""}.`,
+    counts,
+    matches ? "This confirms the TTL reported by the server for fresh subagent cache writes." :
+      "The observed TTL differs from the last requested setting. Check overrides and start a fresh session.",
+    "These token fields do not establish billing mode or subscription quota savings.",
+  ] };
 }
 
 // ---------------------------------------------------------------- baseline

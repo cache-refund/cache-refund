@@ -215,12 +215,20 @@ tokens, dollars, and share of write spend. Fixed order and semantics:
 | `cold-start` | `cold·w5` | no — informational |
 | `model-switch` | creation on turns where `model` ≠ previous turn's, same session, at `w5` | yes (fewer switches) |
 | `compaction-rewrite` | recoverable creation on compact-marked turns, at `w5` | partly |
-| `subagent-5m` | sidechain creation (always 5m even under 1h), at `w5` | no — informational |
+| `subagent-5m` | sidechain 5m creation, at `w5` | informational; inspect the child-only report |
+| `subagent-1h` | sidechain 1h creation, at `w1`; row present when nonzero | informational; observed write cost |
+
+The child-only report distinguishes explicit TTL counters from legacy or partial
+breakdowns. If the 5m field is missing, the parser subtracts any known 1h count
+from the flat creation total before assigning the remainder to the legacy 5m
+bucket. This prevents counting known 1h writes twice. The child report marks
+these fallback writes as unknown TTL and does not use them to verify delivery.
 
 The `ttl-expiry-rewarm` dollars are **net of the tail write**, so this row can
 legitimately be `$0` when the tail exceeds the saving — that is honest, not
-missing data. Compaction and subagent tokens are removed from the recoverable
-bucket to avoid double-counting.
+missing data. Compaction-marked turns are removed from the recoverable leak
+row. The subagent rows describe observed write spend and can overlap the gap
+rows; do not add the rows together as a total savings claim.
 
 **Biggest single miss** = the one recoverable re-warm with the largest net leak
 $ (timestamp, project, tokens, $). **Worst day** = the max daily total of that
@@ -235,7 +243,8 @@ score = 100 × captured / (captured + avoidable)
 - **captured** = `Σ read · (1 − 0.1)·P` = `Σ read · 0.9P`. The realized *saving*
   of every cache hit versus re-paying full input price for those tokens.
 - **avoidable** = the two *fixable* leak rows only: net `ttl-expiry-rewarm` $ +
-  `model-switch` $. Cold starts and subagent overhead are excluded as unfixable.
+  `model-switch` $. Informational cold-start and subagent write rows do not
+  contribute separately to the score.
 
 Both terms are $-valued from billed tokens. `captured` uses `0.9P` (a hit's
 saving over a full re-read); `avoidable` uses the already-tail-corrected net
@@ -314,10 +323,11 @@ only to `delta30d`.
 
 ## 12. Independent confirmations
 
-- **Official docs.** The multipliers and the "subscribers get 1h automatically /
-  `ENABLE_PROMPT_CACHING_1H` is API-only" branch rules are Anthropic's
-  documented behavior (`code.claude.com/docs/en/prompt-caching`,
-  `platform.claude.com` pricing).
+- **Official docs.** Included subscription usage normally requests 1h for the
+  main conversation. Child requests have a separate configurable TTL, including
+  during included subscription usage. A TTL flag or received TTL alone is not
+  billing evidence (`code.claude.com/docs/en/prompt-caching`). Multipliers come
+  from published API pricing (`platform.claude.com`).
 - **Response-header cross-check.** The received-TTL split is independently
   observable in API response headers, matching the `ephemeral_{5m,1h}`
   transcript fields the reality check reads.

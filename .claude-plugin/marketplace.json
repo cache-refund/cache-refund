@@ -9,7 +9,7 @@
       "name": "cache-refund",
       "source": "./skill",
       "description": "Runs the cache-refund checkup and narrates it: what your prompt cache saved, what it leaked, and (for API users) whether to enable the 1-hour TTL.",
-      "version": "1.0.0",
+      "version": "1.1.2",
       "author": {
         "name": "Ilan Bar-Magen"
       },
