@@ -50,7 +50,8 @@ standard library.
 - **Out of scope:** generic settings-opinion features (that's `GOOD-SETTINGS.md`,
   which is content, not product), anything that reads conversation content, or
   anything that adds a network call. Disk writes are limited to confirmed
-  settings edits, the enable baseline, aggregate Markdown reports under
+  settings edits, the enable baseline, the scoped subagent change record and
+  one-shot watchdog state under `~/.claude/cache-refund/`, aggregate Markdown reports under
   `~/.claude/cache-refund/reports/`, and explicitly requested/generated card files.
 
 ## Previewing the other endings

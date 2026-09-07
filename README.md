@@ -25,6 +25,7 @@ do install it, is plain `cache-refund`.)
 
 ```text
 /plugin marketplace add cache-refund/cache-refund
+/plugin install cache-refund@cache-refund
 ```
 
 Then ask Claude Code to “run cache-refund” or “am I leaking money on cache?”
@@ -158,14 +159,17 @@ Flags: `--days N` (default 90) · `--project <path>` (default: all projects) ·
 `--no-color` · `--all-time` · `--no-share` (silence card generation and the final action menu; same as
 env `CACHE_REFUND_NO_SHARE=1`) · `--plan <usd>` (monthly subscription price;
 subscription branch only — overrides an automatically recognized plan price).
-Exit codes: `0` ok · `1` no transcripts found · `2` parse/usage/internal error.
+Exit codes: `0` ok · `1` no transcripts found · `2` parse/usage/internal error ·
+`3` watchdog detected a TTL regression.
 
 ## FAQ
 
 **I'm on a subscription (Pro/Max) — is there anything to do?**
-No action, but there is a receipt. Subscribers already get the 1-hour TTL
-automatically; `cache-refund` shows you what it saved you and where your quota is
-still leaking (model switches, cold starts). Dollar figures are labeled
+Included subscription usage normally gets a one-hour TTL for the main
+conversation. Subagents default to five minutes and can be configured separately,
+including within your plan's included usage. Run `npx cache-refund subagents`
+to inspect their actual cache writes and pauses. The subagent report does not
+convert token counts into subscription quota savings. Dollar figures elsewhere are labeled
 `$-equivalent (API list rates)` because the subscription quota formula is
 undisclosed — we price your tokens at API list rates so the number is *anchored
 and reproducible*, but it is not a bill. When Claude Code's local account cache
@@ -176,9 +180,10 @@ stale tiers stay price-free. `--plan <usd>` remains a manual override.
 ![cache-refund subscription receipt card](./assets/card-subscription.svg)
 
 **Does it work on Bedrock / Vertex?**
-Yes. `ENABLE_PROMPT_CACHING_1H` is an API/Bedrock/Vertex/Foundry feature, so the
-enable recommendation applies to all of them. The analyzer reads the same
-transcript format regardless of provider.
+The analyzer reads the same transcript format regardless of provider. Cache TTL
+availability depends on the provider and model. TTL settings also work on Claude
+subscriptions; a configured flag or received TTL does not identify how a request
+was paid for.
 
 **Does it work with Codex / OpenAI?**
 There's nothing for `cache-refund` to advise there. OpenAI's prompt caching is
@@ -218,13 +223,58 @@ That is the highest-priority kind of bug report. Open a
 only, no content) so the exact figure can be reproduced and traced through the
 formula.
 
+## Inspect and configure subagent caching
+
+```bash
+npx cache-refund subagents             # child-only token and TTL report
+npx cache-refund enable --subagents    # set subagentPromptCacheTtl to "1h"
+npx cache-refund verify --subagents    # verify fresh child writes after the change
+npx cache-refund revert --subagents    # explicitly set that setting to "5m"
+```
+
+Requires Claude Code **2.1.242+** for the scoped setting. It works during
+**included subscription usage**, as well as API billing. Claude Code applies
+`subagentPromptCacheTtl` to subagents and other requests outside the main
+conversation, including helpers and workflows. These commands preserve the main
+conversation's setting and any existing global TTL flag. Settings changes use
+the CLI's confirmation and backup flow; `--yes` skips confirmation.
+The existing unscoped `enable` command uses the legacy global flag, which can
+affect both request groups where a higher-priority scoped control is absent.
+
+The report separates explicit 5m writes, explicit 1h writes, and legacy writes
+whose TTL is unknown. Mixed evidence stays mixed. Five-minute writes after
+5–60-minute pauses are a reason to test a longer TTL, not a proven savings
+amount. Short-lived agents may gain nothing, and a new subagent does not inherit
+its parent's cache. **Subscription quota savings require separate measurement.**
+
+`verify --subagents` checks only child writes in the last 24 hours and after the
+last scoped change when available. Parent writes and older child writes cannot
+certify success. It reports server-provided TTL counters; it does not test cache
+retention over an hour or infer whether usage credits paid for a request.
+
+The normal checkup and Markdown report include the child summary when present.
+`--json` remains a read-only full Summary dump, including the additive
+`subagents` field, even when combined with an action command. `watch` continues
+to monitor the main conversation; `watch --subagents` and `recheck --subagents`
+are not supported.
+
+See [Claude Code's TTL controls](https://code.claude.com/docs/en/prompt-caching#choose-the-ttl-yourself).
+
+## Watch for TTL regressions
+
+```bash
+npx cache-refund watch
+```
+
+Run this periodically (from cron, a scheduled task, or your shell). The first
+run records the TTL your transcripts actually received. Later runs report the
+current state and raise a clear, non-zero alarm if a working 1-hour TTL
+falls back to 5 minutes. The watchdog stores only the observed TTL and check
+time under `~/.claude/cache-refund/` — never prompts or conversation content.
+
 ## Roadmap
 
-- **v1.1 — the TTL regression watchdog.** A `watch` mode that alarms the moment
-  your received TTL flips (the March-2026 incident, turned into a live tripwire).
-  Plus sleep-window learning to split cold gaps into "asleep" vs "abandoned".
-  `watch` is teased in the checkup footer as *coming* — it is not a shipped
-  command yet.
+- Sleep-window learning to split cold gaps into "asleep" vs "abandoned".
 - **v1.5 — `team`** aggregate mode (v1 already ships `--json` + a documented `jq`
   merge for fleets).
 - **v2 — a policy simulator** behind the same cost model: price

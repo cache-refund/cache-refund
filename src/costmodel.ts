@@ -219,9 +219,9 @@ export function counterfactual(
  * creation minus what a 1h TTL would pay for it (read + tail) — i.e. the net
  * money the current-regime leak represents.
  *
- * Compaction rewrites and subagent overhead are attributed and REMOVED from the
- * ttl-expiry-rewarm bucket to avoid double counting / overcounting 1h benefit
- * (compact-marked recoverable turns are cold either way).
+ * Compaction-marked turns are excluded from ttl-expiry-rewarm (cold either way).
+ * The subagent rows are informational write-spend breakdowns that overlap the
+ * gap rows, not additional avoidable savings to add to them.
  */
 export function leakRows(
   annotated: AnnotatedTurn[],
@@ -241,6 +241,8 @@ export function leakRows(
   let compactDollars = 0;
   let sideTokens = 0;
   let sideDollars = 0;
+  let side1hTokens = 0;
+  let side1hDollars = 0;
 
   for (const a of annotated) {
     const ev = a.ev;
@@ -250,10 +252,13 @@ export function leakRows(
     const w1 = MULT_1H_WRITE * P;
     const rd = MULT_READ * P;
 
-    // Subagent overhead: sidechain creation is always 5m even under 1h.
+    // Child TTL is configurable, including on subscriptions. Price the TTL
+    // actually reported instead of charging every child write at the 5m rate.
     if (ev.isSidechain) {
-      sideTokens += creation;
-      sideDollars += creation * w5;
+      sideTokens += ev.c5;
+      sideDollars += ev.c5 * w5;
+      side1hTokens += ev.c1;
+      side1hDollars += ev.c1 * w1;
     }
 
     // Model-switch invalidation: a creation spike where model changed.
@@ -325,6 +330,10 @@ export function leakRows(
       informational: true,
     },
   ];
+  if (side1hTokens > 0) rows.push({
+    cause: "subagent-1h", label: "Subagent 1h cache writes", tokens: side1hTokens,
+    dollars: side1hDollars, shareOfWriteSpend: share(side1hDollars), informational: true,
+  });
   return rows;
 }
 

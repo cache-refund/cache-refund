@@ -8,9 +8,8 @@
  *   - if still ambiguous: caller asks one question interactively; in --json
  *     mode we report branch:"ambiguous" instead of asking.
  *
- * Official rule: subscribers receive 1h automatically; ENABLE_PROMPT_CACHING_1H
- * is API/Bedrock/Vertex/Foundry-only. So: 1h regime + no explicit env flag +
- * no API-provider hint => subscription. 5m regime + API hint => api-5m. etc.
+ * TTL controls work on subscriptions too. A cache flag or received TTL alone
+ * does not establish billing; prefer provider and account evidence.
  */
 
 import { readFileSync } from "node:fs";
@@ -30,6 +29,7 @@ import {
 import { THRESHOLD } from "./pricing.js";
 import type { Branch, Regime, Summary, TurnEvent, TtlRealityCheck } from "./types.js";
 import { readAccountPlan } from "./account.js";
+import { summarizeSubagents } from "./subagents.js";
 
 export interface EnvHints {
   enable1h: boolean;
@@ -131,24 +131,8 @@ export function detectBranch(hints: EnvHints, regime: Regime, jsonMode: boolean)
     return { branch: "subscription", evidence: ev };
   }
 
-  // No API-provider or subscription signal. The 1h flag is API-only, so if
-  // it's set here we lean API (the user may set the key via keychain/helper).
-  if (hints.enable1h) {
-    ev.push("=> 1h flag set without provider hint; treating as API-billed on 1h");
-    return { branch: "api-1h", evidence: ev };
-  }
-
-  // Subscribers get 1h automatically and cannot set the flag. A 1h regime with
-  // no provider hint and no flag is the canonical subscription signature.
-  if (regime === "1h") {
-    ev.push("=> subscription (1h auto-active, no API provider hint, no 1h flag)");
-    return { branch: "subscription", evidence: ev };
-  }
-
-  // 5m regime, no provider hint: could be a subscriber whose writes are mostly
-  // sidechain/5m, or an API user on the default. Ambiguous in --json; otherwise
-  // the CLI asks one question.
-  ev.push("=> ambiguous (5m regime, no provider hint)");
+  // Both billing modes can request either TTL, including for subagents.
+  ev.push("=> ambiguous (no provider/account billing evidence; TTL does not identify billing)");
   return { branch: jsonMode ? "ambiguous" : "subscription", evidence: ev };
 }
 
@@ -159,7 +143,9 @@ export function ttlRealityCheck(events: TurnEvent[], windowDays: number, lastTs:
   if (lastTs !== null) {
     const cutoff = lastTs - windowDays * 86400;
     for (const ev of events) {
-      if (ev.ts >= cutoff) {
+      // Children have an independent TTL policy. This check and the watchdog
+      // describe the main conversation only; child evidence is reported separately.
+      if (ev.ts >= cutoff && !ev.isSidechain) {
         creation5m += ev.c5;
         creation1h += ev.c1;
       }
@@ -275,6 +261,7 @@ export function buildSummary(input: BuildSummaryInput): Summary {
     branchEvidence: branch.evidence,
     regime: agg.regime,
     ttlRealityCheck: reality,
+    subagents: summarizeSubagents(events, realityWindow, agg.lastTs),
     buckets: agg.buckets,
     tokens: {
       creationTotal: agg.buckets.creationTotal,

@@ -62,7 +62,11 @@ function sortedOraclePath(dir: string): string {
   const src = readFileSync(ORACLE, "utf8");
   const anchor = "    return files, roots";
   if (!src.includes(anchor)) throw new Error("oracle anchor not found; update the parity wrapper");
-  const patched = src.replace(anchor, "    files.sort()\n" + anchor);
+  const flatCollection = '        files.extend(glob.glob(os.path.join(r, "*.jsonl")))';
+  if (!src.includes(flatCollection)) throw new Error("oracle collection anchor not found; update the parity wrapper");
+  const patched = src
+    .replace(flatCollection, '        files.extend(glob.glob(os.path.join(r, "**", "*.jsonl"), recursive=True))')
+    .replace(anchor, "    files.sort()\n" + anchor);
   const p = join(dir, "oracle_sorted.py");
   writeFileSync(p, patched);
   return p;
@@ -199,12 +203,14 @@ maybe("oracle parity on the real corpus (frozen clone, sorted order)", () => {
     expect(Math.abs(tailTerm)).toBeLessThan(oracle.write_cost_5m * 0.05);
   });
 
-  it("classifies this machine as subscription / 1h regime (the live subscriber fixture)", async () => {
+  it("preserves the 1h regime without inferring billing from a transcript-only clone", async () => {
     const dir = frozenHome();
     const { summary } = await run({ allTime: true, home: dir, jsonMode: true });
     const s = summary!;
     expect(s.regime).toBe("1h");
-    expect(s.branch).toBe("subscription");
+    // The frozen clone contains transcripts, not account billing evidence.
+    // Subscriptions and API users can both request one-hour cache writes.
+    expect(s.branch).toBe("ambiguous");
     // Symmetric counterfactual must say 1h is CHEAPER here (negative delta):
     // the naive creation-only oracle delta is positive; ours must flip the sign.
     expect(s.counterfactual.delta1hMinus5m).toBeLessThan(0);

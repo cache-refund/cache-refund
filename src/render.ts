@@ -42,6 +42,7 @@
 
 import type { LeakRow, Summary } from "./types.js";
 import { usagePatternStory } from "./story.js";
+import { renderSubagents } from "./subagents.js";
 import {
   box,
   fmtBar,
@@ -99,9 +100,8 @@ export function shareHint(sym: Sym): string {
   // v1.0.1: points at `card` (the canonical screenshot), not --compact.
   return `share: npx cache-refund card  ${sym.dot}  #cacherefund`;
 }
-/** Contains a prose em dash -> a function of `sym`, not a plain const. */
-function watchTeaser(sym: Sym): string {
-  return `watch (TTL regression alarm): coming in v1.1 ${sym.dash} watch the repo`;
+function watchTeaser(): string {
+  return `TTL regression alarm: npx cache-refund watch`;
 }
 
 /** Terminal-width law: no rendered line exceeds 80 cols at default terminal. */
@@ -826,7 +826,7 @@ function endingReceipt(s: Summary, ink: Ink, sym: Sym, planPrice?: number): Endi
   // SHARE for the analyzed window (oneHourWriteShare), not R/C.
   const verifyLine = pctReceived1h
     ? `1h already yours, verified in your transcripts: ${fmtPct(oneHourWriteShare(s))} of writes are 1h ${sym.check}`
-    : `TTL received (last ${s.ttlRealityCheck.windowDays}d): ${s.ttlRealityCheck.received} ${sym.dash} subscriptions get 1h automatically; if you're seeing 5m, an overage likely dropped you to API rates.`;
+    : `Main TTL received (last ${s.ttlRealityCheck.windowDays}d): ${s.ttlRealityCheck.received} ${sym.dash} TTL alone does not identify billing mode; check settings and usage credits.`;
   const plan = planMultiplierLine(s, planPrice);
   const lines: string[] = [
     ink.bold("YOUR RECEIPT"),
@@ -850,8 +850,8 @@ function endingReceipt(s: Summary, ink: Ink, sym: Sym, planPrice?: number): Endi
     lines.push(`  ${l.informational ? ink.dim(sym.dot) : ink.yellow(sym.bullet)} ${label}: ${fmtDollars(l.dollars)}-eq (${fmtPct(l.shareOfWriteSpend)} of spend)`);
   }
   lines.push("");
-  lines.push(...wrapTerm("note: subagents still run on 5m even under 1h; overage drops you to 5m and bills API rates.").map((l) => ink.dim(l)));
-  lines.push(ink.dim(watchTeaser(sym)));
+  lines.push(...wrapTerm("Subagents default to 5m and have a separate TTL setting, including on subscriptions. Run `cache-refund subagents` to inspect them.").map((l) => ink.dim(l)));
+  lines.push(ink.dim(watchTeaser()));
   return { lines, needsConsent: false };
 }
 
@@ -1009,6 +1009,7 @@ export function renderFull(s: Summary, opts: RenderOptions): FullRenderResult {
   lines.push(...wrappedLines(s, ink, sym, opts.showProjects === true));
   lines.push("");
   lines.push(...ending.lines);
+  if (s.subagents && s.subagents.turns > 0) lines.push("", ...renderSubagents(s.subagents));
   lines.push("");
   lines.push(...shareRail(ink, sym));
 
@@ -1103,6 +1104,9 @@ export function renderMarkdown(s: Summary): string {
   }
   lines.push("");
   lines.push(`_${METHODOLOGY_HINT}_`);
+  if (s.subagents && s.subagents.turns > 0) {
+    lines.push("", "### " + renderSubagents(s.subagents).join("\n\n"));
+  }
   return lines.join("\n");
 }
 

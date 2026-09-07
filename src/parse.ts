@@ -6,7 +6,8 @@
  *   - Dedup by `message.id` GLOBALLY across all files (first occurrence wins).
  *   - c5/c1 from `usage.cache_creation.ephemeral_{5m,1h}_input_tokens`;
  *     fallback: when `cache_creation` is absent OR its 5m field is null,
- *     use flat `usage.cache_creation_input_tokens` -> c5, c1 = 0.
+ *     keep any known c1 and assign the remaining flat total to c5. Such
+ *     fallback counts are marked inferred, not explicit received-TTL evidence.
  *   - read from `usage.cache_read_input_tokens`.
  *   - sessionKey = file basename + ":" + sessionId  (oracle key).
  *   - Malformed / non-JSON / usage-less lines are skipped silently.
@@ -86,15 +87,18 @@ export function eventFromObject(
 
   // c5/c1 extraction with flat fallback.
   const cc = u["cache_creation"];
+  const cacheTtlInferred = cc === null || typeof cc !== "object" ||
+    typeof (cc as Record<string, unknown>)["ephemeral_5m_input_tokens"] !== "number" ||
+    typeof (cc as Record<string, unknown>)["ephemeral_1h_input_tokens"] !== "number";
   let c5: number;
   let c1: number;
   if (cc !== null && typeof cc === "object") {
     const ccObj = cc as Record<string, unknown>;
     const raw5 = ccObj["ephemeral_5m_input_tokens"];
     if (raw5 === null || raw5 === undefined) {
-      // cache_creation present but 5m field missing -> flat fallback.
-      c5 = num(u["cache_creation_input_tokens"]);
+      // The flat field includes known 1h writes; count them only once.
       c1 = num(ccObj["ephemeral_1h_input_tokens"]);
+      c5 = Math.max(0, num(u["cache_creation_input_tokens"]) - c1);
     } else {
       c5 = num(raw5);
       c1 = num(ccObj["ephemeral_1h_input_tokens"]);
@@ -121,6 +125,7 @@ export function eventFromObject(
     isSidechain,
     c5,
     c1,
+    ...(cacheTtlInferred ? { cacheTtlInferred: true } : {}),
     read,
     compactBoundaryBefore,
     project: opts.project ?? "",

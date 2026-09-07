@@ -63,7 +63,7 @@ maybe("--version and --help short-circuit before the pipeline", () => {
     const r = runCli(home, ["--help"]);
 
     expect(r.status).toBe(0);
-    for (const subcommand of ["card", "enable", "revert", "verify", "recheck"]) {
+    for (const subcommand of ["card", "enable", "revert", "verify", "recheck", "watch"]) {
       expect(r.stdout).toContain(subcommand);
     }
     for (const flag of ["--days", "--json", "--slack", "--all-time", "--price"]) {

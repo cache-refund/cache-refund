@@ -30,10 +30,11 @@ export type GapClass = "start" | "warm" | "recoverable" | "cold";
  *              Bedrock/Vertex-prefixed id like "us.anthropic.claude-…" or
  *              the special "<synthetic>" no-charge model).
  *   sessionKey — file basename + ":" + `sessionId` (matches the oracle key).
- *   isSidechain — top-level `isSidechain` (subagent turns; always billed 5m TTL).
+ *   isSidechain — top-level `isSidechain` (subagent turns; TTL is configurable).
  *   c5 / c1  — `usage.cache_creation.ephemeral_{5m,1h}_input_tokens`.
  *              Fallback when `cache_creation` is absent or its 5m field is
- *              null: flat `usage.cache_creation_input_tokens` -> c5, c1 = 0.
+ *              null: keep known c1 and put the remaining flat total in c5;
+ *              mark the breakdown inferred.
  *   read     — `usage.cache_read_input_tokens`.
  *   compactBoundaryBefore — true when a `type:"system", subtype:"compact_boundary"`
  *              (or `isCompactSummary`) line immediately precedes this turn in the
@@ -47,6 +48,8 @@ export interface TurnEvent {
   isSidechain: boolean;
   c5: number;
   c1: number;
+  /** Flat legacy counts were assigned to 5m for compatibility, not observed TTL evidence. */
+  cacheTtlInferred?: boolean;
   read: number;
   compactBoundaryBefore: boolean;
   /** Best-effort project label (encoded-cwd dir name) for biggest-miss reporting. */
@@ -85,7 +88,8 @@ export interface LeakRow {
     | "cold-start"
     | "model-switch"
     | "compaction-rewrite"
-    | "subagent-5m";
+    | "subagent-5m"
+    | "subagent-1h";
   label: string;
   tokens: number;
   dollars: number;
@@ -184,6 +188,27 @@ export interface TtlRealityCheck {
   received: string;
 }
 
+export type SubagentTtl = "none" | "unknown" | "5m" | "1h" | "mixed";
+
+export interface SubagentSummary {
+  sessions: number;
+  turns: number;
+  /** Explicit TTL counters only; legacy flat counts have their own bucket. */
+  creation5m: number;
+  creation1h: number;
+  creationUnknown: number;
+  readTokens: number;
+  /** Observed 5m writes after 5–60m pauses; a diagnostic, not proven waste. */
+  pauseWriteTokens: number;
+  recent: {
+    windowDays: number;
+    ttl: SubagentTtl;
+    creation5m: number;
+    creation1h: number;
+    creationUnknown: number;
+  };
+}
+
 /**
  * The full machine-readable summary. Stable, documented, versioned.
  * Every field the checkup rendering needs is present here so the renderer is
@@ -218,6 +243,8 @@ export interface Summary {
 
   regime: Regime;
   ttlRealityCheck: TtlRealityCheck;
+  /** Additive: child-only evidence, independent of the main TTL and billing branch. */
+  subagents?: SubagentSummary;
 
   buckets: GapBuckets;
 

@@ -7,7 +7,8 @@ description: >-
   money. Use when the user asks about their Claude Code cache cost, prompt-cache
   savings or waste, cache efficiency, the 1-hour vs 5-minute TTL, whether to set
   ENABLE_PROMPT_CACHING_1H, "am I leaking money on cache", "run cache-refund", or
-  "is my cache TTL costing me". 100% local — reads token counts and timestamps
+  "is my cache TTL costing me", or subagent cache configuration on API billing
+  or a subscription. 100% local — reads token counts and timestamps
   only, never conversation content, no network.
 allowed-tools: Bash(npx cache-refund*)
 ---
@@ -45,10 +46,13 @@ The fields you'll use:
 - `window.days`, `scope.sessions`, `scope.turns` — the framing.
 - `recoverableRatio` and `threshold` — R/C vs the 39.5% break-even.
 - `efficiencyScore` (with `scoreVersion`) — 0–100.
-- `leaks[]` — five rows (`ttl-expiry-rewarm`, `cold-start`, `model-switch`,
-  `compaction-rewrite`, `subagent-5m`), each with `tokens`, `dollars`,
+- `leaks[]` — rows (`ttl-expiry-rewarm`, `cold-start`, `model-switch`,
+  `compaction-rewrite`, `subagent-5m`, plus `subagent-1h` when present), each with `tokens`, `dollars`,
   `informational`.
 - `ttlRealityCheck.received` — the TTL actually landing in recent transcripts.
+- `subagents` — child-only 5m/1h write counters, unknown-TTL legacy writes,
+  reads, and `recent.ttl` (`5m`, `1h`, `mixed`, `unknown`, or `none`). The main
+  `ttlRealityCheck` excludes children because their TTL is independently configurable.
 - `biggestMiss`, `worstDay`, `wrapped` — the visceral share stats.
 
 ## Step 2 — narrate "the number" in ONE sentence, with the verbatim figure
@@ -104,7 +108,18 @@ The tool owns the only write path, with backup + confirmation. If (and only if)
 > landed."
 
 For `api-1h` where 5m would be cheaper, point to `npx cache-refund revert` the same
-way. For `subscription`, there is nothing to enable — say so.
+way. Included subscription usage normally already has 1h on the main conversation,
+but subagents have a separate configurable TTL.
+
+For subagent questions, run `npx cache-refund subagents` and explain the observed
+token counts. `pauseWriteTokens` identifies 5m writes after 5–60m pauses as a
+reason to test a longer TTL, not as proven waste or a savings amount. Offer
+`npx cache-refund enable --subagents` to request 1h and
+`npx cache-refund verify --subagents` to inspect fresh child writes afterward.
+`revert --subagents` explicitly sets child/helper TTL to 5m. The setting requires
+Claude Code 2.1.242+ and also affects helpers/workflows outside the main conversation.
+Do not claim it saves any specific amount of subscription quota. Mixed or unknown
+evidence must not be described as successful uniform TTL delivery.
 
 Do not run `enable`/`revert` on the user's behalf. Surface the command and let
 the user run it. (If they explicitly ask you to run it, run `npx cache-refund

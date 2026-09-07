@@ -429,9 +429,9 @@ QUOTA-LEAK LIST ($-equivalent, API list rates - not a bill)
   > Compaction rewrites: $1.93-eq (0.0% of spend)
   - Subagent 5m overhead: $0.00-eq (0.0% of spend)
 
-note: subagents still run on 5m even under 1h; overage drops you to 5m and bills
-API rates.
-watch (TTL regression alarm): coming in v1.1 - watch the repo
+Subagents default to 5m and have a separate TTL setting, including on
+subscriptions. Run \`cache-refund subagents\` to inspect them.
+TTL regression alarm: npx cache-refund watch
 
 methodology: npx cache-refund --explain
 share: npx cache-refund card  -  #cacherefund"

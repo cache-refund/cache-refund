@@ -6,6 +6,25 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- Added child-only cache diagnostics with `subagents` / `--subagents`, plus
+  scoped `enable`, `revert`, and `verify` commands for Claude Code 2.1.242+.
+  Subagent TTL can be configured during included subscription usage. Reports
+  preserve mixed and unknown TTL evidence without claiming quota savings.
+- Price subagent writes using their received 5m/1h TTL, and keep child TTL
+  verification separate from the main-conversation watchdog. Cache flags and
+  received TTL alone no longer determine a user's billing branch.
+- Avoid double-counting known 1h tokens when a partial TTL breakdown omits the
+  5m field and also supplies a flat cache-creation total.
+
+- Added `cache-refund watch`, a scheduler-friendly TTL regression tripwire that
+  remembers the last received TTL and alarms if 1-hour writes fall back to 5m.
+- Fixed transcript discovery to include nested subagent sessions; previous
+  releases could miss most subagent usage and understate the 5m overhead.
+- Excluded independently configured sidechain writes from the main received-TTL verdict so
+  healthy, subagent-heavy 1h sessions cannot trigger a false regression alarm.
+- Fixed Claude Code plugin setup instructions to install the plugin after adding
+  its marketplace, and synchronized plugin metadata with package version 1.1.2.
+
 ## [1.1.0] — 2026-07-13
 
 - **Outcome-first receipts:** API users now lead with monthly dollar savings,

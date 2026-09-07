@@ -10,7 +10,7 @@
  * Read-only: this module never writes and never touches anything but listing.
  */
 
-import { existsSync, readdirSync, statSync, realpathSync } from "node:fs";
+import { existsSync, readdirSync, statSync, realpathSync, type Dirent } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -29,14 +29,23 @@ export function encodeCwd(path: string): string {
   return real.replace(/[/.]/g, "-");
 }
 
+/** Recursively collect transcripts, including session/subagents/*.jsonl. */
 function jsonlIn(dir: string): string[] {
-  let names: string[];
+  let entries: Dirent[];
   try {
-    names = readdirSync(dir);
+    entries = readdirSync(dir, { withFileTypes: true });
   } catch {
     return [];
   }
-  return names.filter((n) => n.endsWith(".jsonl")).map((n) => join(dir, n));
+  const files: string[] = [];
+  for (const entry of entries) {
+    const path = join(dir, entry.name);
+    if (entry.isFile() && entry.name.endsWith(".jsonl")) files.push(path);
+    // Deliberately do not follow symlinked directories: a project transcript
+    // tree should never escape its selected root or recurse through a cycle.
+    else if (entry.isDirectory()) files.push(...jsonlIn(path));
+  }
+  return files;
 }
 
 function isDir(p: string): boolean {
