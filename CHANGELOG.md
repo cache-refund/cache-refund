@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-09-08
+
 - Added child-only cache diagnostics with `subagents` / `--subagents`, plus
   scoped `enable`, `revert`, and `verify` commands for Claude Code 2.1.242+.
   Subagent TTL can be configured during included subscription usage. Reports
@@ -23,7 +25,7 @@ All notable changes to this project are documented here. The format follows
 - Excluded independently configured sidechain writes from the main received-TTL verdict so
   healthy, subagent-heavy 1h sessions cannot trigger a false regression alarm.
 - Fixed Claude Code plugin setup instructions to install the plugin after adding
-  its marketplace, and synchronized plugin metadata with package version 1.1.2.
+  its marketplace, and synchronized plugin metadata with the package version.
 
 ## [1.1.0] — 2026-07-13
 
