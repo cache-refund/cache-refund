@@ -26,8 +26,13 @@ npm test             # vitest: unit math + render snapshots + oracle parity
 node dist/cli.js     # run the CLI against your own corpus
 ```
 
-Requires Node 18+. The oracle-parity test cross-checks the analyzer against the
-Python prototype in `tools/oracle/` on your real `~/.claude/projects` corpus; it
+The CLI itself runs on Node 18+, but building and running the test suite need
+Node 20+ (the test runner no longer supports Node 18). CI builds and tests on
+Node 20, 22 and 24, and runs the compiled `dist/cli.js` on Node 18 against a
+synthetic transcript to keep the Node 18 runtime verified.
+
+The oracle-parity test cross-checks the analyzer against the Python prototype
+in `tools/oracle/` on your real `~/.claude/projects` corpus; it
 **auto-skips** if that corpus (or `python3`) is absent, so a fresh clone on a
 machine with no Claude Code history still goes green on the rest of the suite.
 
